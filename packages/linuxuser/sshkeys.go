@@ -85,6 +85,9 @@ func SSHKeys(username string, includePrivate bool) (*SSHKeysStatus, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
+	if keys == nil {
+		keys = []AuthorizedKey{}
+	}
 	st.AuthorizedKeys = keys
 	st.AuthorizedKeysCount = len(keys)
 	st.Identity = readIdentity(sshDir, includePrivate)
@@ -329,7 +332,7 @@ func readAuthorizedKeys(path string) ([]AuthorizedKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []AuthorizedKey
+	out := make([]AuthorizedKey, 0)
 	idx := 0
 	for line := range strings.SplitSeq(string(raw), "\n") {
 		trimmed := strings.TrimSpace(line)
