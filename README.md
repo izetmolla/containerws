@@ -263,12 +263,28 @@ Publish host ports with `-p 9000:9000 -p 2222:22` (or your compose `ports:` / ne
 
 ## Binary releases (GitHub)
 
-Publish archives via GoReleaser on tag push (binaries only — no Docker images):
+Publish archives via GoReleaser (binaries only — no Docker images).
+
+### From GitHub Actions (recommended)
+
+1. Open **Actions → Release → Run workflow**
+2. Choose a mode:
+   - **bump-and-publish** — build, bump `patch`/`minor`/`major`, tag, push, publish release
+   - **publish-tag** — publish an existing `v*` tag (enter tag like `v0.1.0`)
+   - **snapshot** — dry-run build only (no GitHub Release)
+
+Or push a commit whose message contains **`patch & release`** on `main`/`master`  
+(see **Patch & Release** workflow — always does a patch bump).
+
+### Local
 
 ```bash
 ./scripts/release.sh patch   # or: minor | major
-# → tags vX.Y.Z, pushes, Actions builds linux/darwin/windows binaries
+# → preflight build (frontend typecheck/lint/build + go test/build),
+#   then tags vX.Y.Z, pushes; tag push also runs the Release workflow
 ```
+
+Preflight must pass before any tag is created. Use `--skip-build` only when CI already built.
 
 Local build only: `./scripts/build.sh` or `task build`.
 

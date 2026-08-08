@@ -21,15 +21,6 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   actionBar?: React.ReactNode;
   onCellEdit?: (event: CellEditEvent<TData>) => void;
 }
-import type { RowData } from '@tanstack/react-table';
-// import { DataTableProvider } from "./data-table-provider";
-
-declare module '@tanstack/react-table' {
-  interface ColumnMeta<_TData extends RowData, _TValue> {
-    className?: string
-  }
-}
-
 
 export function DataTableContent<TData>({
   table,

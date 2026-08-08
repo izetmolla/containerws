@@ -34,7 +34,6 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0;
   const localState = useOptionalDataTableLocalState();
   const [, setUrlSorting] = useQueryState(QUERY_KEYS.SORT, parseAsString);
-  const columnDefs = table.options.columns;
 
   const columns = React.useMemo(
     () =>
@@ -47,7 +46,7 @@ export function DataTableToolbar<TData>({
             !column.columnDef.meta?.enableOnlyAdvancedFilters &&
             !column.columnDef.meta?.hidden,
         ),
-    [columnDefs, table],
+    [table],
   );
 
   const onReset = React.useCallback(() => {

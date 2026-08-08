@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# release.sh — bump version, update CHANGELOG, create annotated tag, push to GitHub.
+# release.sh — verify builds, bump version, update CHANGELOG, create annotated tag, push.
 #
 # Pushing a v* tag triggers .github/workflows/release.yml which builds the
 # frontend, runs GoReleaser (binaries only — no Docker images), and publishes
 # a GitHub Release.
 #
+# The GitHub Action .github/workflows/patch-release.yml also runs this flow when
+# a commit message contains "patch & release".
+#
 # Usage:
 #   ./scripts/release.sh [major|minor|patch]
 #   ./scripts/release.sh patch --no-push   # tag locally only
 #   ./scripts/release.sh minor --yes       # skip confirmation
+#   ./scripts/release.sh patch --skip-build  # skip preflight (CI already built)
 #
 # Prerequisites: clean git working tree, push access to origin.
 set -euo pipefail
@@ -19,19 +23,21 @@ cd "$ROOT"
 BUMP="patch"
 PUSH=1
 YES=0
+SKIP_BUILD=0
 
 for arg in "$@"; do
   case "$arg" in
     major|minor|patch) BUMP="$arg" ;;
     --no-push) PUSH=0 ;;
     --yes|-y) YES=1 ;;
+    --skip-build) SKIP_BUILD=1 ;;
     -h|--help)
-      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
       echo "unknown argument: $arg" >&2
-      echo "usage: $0 [major|minor|patch] [--no-push] [--yes]" >&2
+      echo "usage: $0 [major|minor|patch] [--no-push] [--yes] [--skip-build]" >&2
       exit 1
       ;;
   esac
@@ -44,6 +50,56 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 git fetch --tags --quiet 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# Preflight: fail before any tag/commit so broken builds never get published.
+# ---------------------------------------------------------------------------
+preflight_build() {
+  echo "==> Preflight builds (must pass before tagging)"
+  echo
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "error: pnpm is required for the frontend build" >&2
+    exit 1
+  fi
+  if ! command -v go >/dev/null 2>&1; then
+    echo "error: go is required for the backend build" >&2
+    exit 1
+  fi
+
+  echo "→ frontend: install + typecheck + lint + build"
+  (
+    cd "$ROOT/frontend"
+    pnpm install --frozen-lockfile
+    pnpm run typecheck
+    pnpm run lint
+    pnpm run build
+    test -f static/index.html
+  )
+
+  echo "→ backend: go test + go build"
+  go test ./...
+  go build -o "${ROOT}/.release-preflight-bin" .
+  rm -f "${ROOT}/.release-preflight-bin"
+
+  if command -v goreleaser >/dev/null 2>&1; then
+    echo "→ goreleaser check"
+    goreleaser check
+  else
+    echo "! goreleaser not installed locally — skipping config check (CI will validate)"
+  fi
+
+  echo
+  echo "✓ Preflight passed"
+  echo
+}
+
+if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  preflight_build
+else
+  echo "Skipping preflight builds (--skip-build)"
+  echo
+fi
 
 NEXT="$("$ROOT/scripts/bump-version.sh" "$BUMP")"
 CURRENT="$(git describe --tags --abbrev=0 --match='v*' 2>/dev/null || echo 'v0.0.0')"

@@ -110,20 +110,24 @@ export function DataTableFilterList<TData>({
   const [open, setOpen] = React.useState(false);
   const addButtonRef = React.useRef<HTMLButtonElement>(null);
 
-  const columnDefs = table.options.columns;
-
   const columns = React.useMemo(() => {
     return table
       .getAllColumns()
       .filter((column) => column.columnDef.enableColumnFilter);
-  }, [columnDefs, table]);
+  }, [table]);
 
   const localState = useOptionalDataTableLocalState<TData>();
   const [urlFilters, setUrlFilters] = useAdvancedFiltersQueryState<TData>({
     shallow,
     throttleMs,
   });
-  const filters = (localState?.advancedFilters ?? urlFilters ?? []) as AdvancedFilterEntry<TData>[];
+  const filters = React.useMemo(
+    () =>
+      (localState?.advancedFilters ??
+        urlFilters ??
+        []) as AdvancedFilterEntry<TData>[],
+    [localState?.advancedFilters, urlFilters],
+  );
   const setFilters = localState?.setAdvancedFilters ?? setUrlFilters;
   const debouncedSetFilters = useDebouncedCallback(setFilters, debounceMs);
 

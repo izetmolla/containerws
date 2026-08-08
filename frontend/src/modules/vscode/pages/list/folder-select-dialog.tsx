@@ -125,7 +125,6 @@ export function FolderSelectDialog({
   })
 
   const folders = listQuery.data?.entries ?? []
-  const roots = listQuery.data?.roots ?? []
   const crumbs = splitCrumbs(browsePath)
   const resolvedPath = normalizePath(pathDraft)
   const willCreate =
@@ -148,9 +147,10 @@ export function FolderSelectDialog({
   }
 
   const shortcutRoots = useMemo(() => {
+    const roots = listQuery.data?.roots ?? []
     if (roots.length) return roots
     return [{ path: "/workspace", label: "Workspace" }]
-  }, [roots])
+  }, [listQuery.data?.roots])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

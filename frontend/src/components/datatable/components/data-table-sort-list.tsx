@@ -56,8 +56,6 @@ export function DataTableSortList<TData>({
   const sorting = table.getState().sorting;
   const onSortingChange = table.setSorting;
 
-  const columnDefs = table.options.columns;
-
   const { columnLabels, columns } = React.useMemo(() => {
     const labels = new Map<string, string>();
     const sortingIds = new Set(sorting.map((s) => s.id));
@@ -78,7 +76,7 @@ export function DataTableSortList<TData>({
       columnLabels: labels,
       columns: availableColumns,
     };
-  }, [sorting, columnDefs, table]);
+  }, [sorting, table]);
 
   const onSortAdd = React.useCallback(() => {
     const firstColumn = columns[0];

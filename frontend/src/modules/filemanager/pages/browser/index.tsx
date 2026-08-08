@@ -357,8 +357,8 @@ export default function FileManagerPage() {
   const currentPath = path || data?.path || "/"
   const homeDir = data?.user?.home_dir
   const inTrash = isTrashPath(currentPath, homeDir)
-  const entries = data?.entries ?? []
-  const roots = data?.roots ?? []
+  const entries = useMemo(() => data?.entries ?? [], [data?.entries])
+  const roots = useMemo(() => data?.roots ?? [], [data?.roots])
   const placeRoots = useMemo(
     () => roots.filter((r) => (r.group || "places") === "places"),
     [roots],

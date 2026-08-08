@@ -39,17 +39,17 @@ tasks:
       - ./scripts/bump-version.sh --dry-run {{.CLI_ARGS}}
 
   release:patch:
-    desc: Bump patch version, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump patch, tag, and push (triggers GitHub Release)
     cmds:
       - ./scripts/release.sh patch
 
   release:minor:
-    desc: Bump minor version, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump minor, tag, and push (triggers GitHub Release)
     cmds:
       - ./scripts/release.sh minor
 
   release:major:
-    desc: Bump major version, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump major, tag, and push (triggers GitHub Release)
     cmds:
       - ./scripts/release.sh major
 

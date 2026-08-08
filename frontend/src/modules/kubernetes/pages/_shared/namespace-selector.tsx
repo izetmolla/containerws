@@ -62,9 +62,9 @@ export function NamespaceSelector() {
     staleTime: 30_000,
   })
   const current = ns || ALL
-  const rows = nsQuery.data?.data ?? []
 
   const options = useMemo<NamespaceOption[]>(() => {
+    const rows = nsQuery.data?.data ?? []
     const visible = showSystem
       ? rows
       : rows.filter((n) => !isSystemNamespace(n.name))
@@ -72,7 +72,7 @@ export function NamespaceSelector() {
       { label: "All namespaces", value: ALL },
       ...visible.map((n) => ({ label: n.name, value: n.name })),
     ]
-  }, [rows, showSystem])
+  }, [nsQuery.data?.data, showSystem])
 
   return (
     <div className="w-[220px]">

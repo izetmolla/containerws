@@ -9,7 +9,10 @@ export type { FilterOperator, FilterVariant, JoinOperator } from "./table-operat
 export type { ExtendedColumnSort } from "./table-sort";
 
 declare module "@tanstack/react-table" {
-    interface ColumnMeta<_TData extends RowData, _TValue> {
+    // Param names must match @tanstack/react-table's ColumnMeta<TData, TValue>
+    // for TypeScript module augmentation (TS7). They are intentionally unused.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- augmentation type params
+    interface ColumnMeta<TData extends RowData, TValue> {
         label?: string;
         placeholder?: string;
         variant?: FilterVariant;
