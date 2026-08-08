@@ -270,8 +270,18 @@ Publish archives via GoReleaser (binaries only — no Docker images).
 1. Open **Actions → Release → Run workflow**
 2. Choose a mode:
    - **bump-and-publish** — build, bump `patch`/`minor`/`major`, tag, push, publish release
-   - **publish-tag** — publish an existing `v*` tag (enter tag like `v0.1.0`)
+   - **tag-and-publish** — create exact tag `vX.Y.Z` on the selected branch HEAD, push, publish (fails if the tag already exists)
+   - **publish-tag** — publish an **existing** `v*` tag (enter tag like `v0.1.0`; no new tag created)
    - **snapshot** — dry-run build only (no GitHub Release)
+
+For an exact version from Actions, use **tag-and-publish** and set **tag** to e.g. `v0.2.0`. To republish a tag that is already on the remote, use **publish-tag** with the same field.
+
+Pushing a `v*` tag yourself also starts the Release workflow once (same publish path as **publish-tag**):
+
+```bash
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin v0.2.0
+```
 
 There is a single **Release** workflow (plus normal **CI** on branch pushes). Do not run two release workflows for the same version.
 
@@ -279,6 +289,7 @@ There is a single **Release** workflow (plus normal **CI** on branch pushes). Do
 
 ```bash
 ./scripts/release.sh patch   # or: minor | major
+./scripts/release.sh v0.2.0  # exact version (fails if tag exists)
 # → preflight build, then tags vX.Y.Z and pushes;
 #   the tag push runs the Release workflow once
 ```

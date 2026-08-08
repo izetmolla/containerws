@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# release.sh — verify builds, bump version, update CHANGELOG, create annotated tag, push.
+# release.sh — verify builds, bump or set version, update CHANGELOG, create annotated tag, push.
 #
 # Pushing a v* tag triggers .github/workflows/release.yml which builds and
 # publishes a GitHub Release with GoReleaser (binaries only — no Docker images).
 #
 # You can also release from the Actions UI: Actions → Release → Run workflow
-# (bump-and-publish / publish-tag / snapshot).
+# (bump-and-publish / tag-and-publish / publish-tag / snapshot).
 #
 # Usage:
 #   ./scripts/release.sh [major|minor|patch]
+#   ./scripts/release.sh v1.2.3          # exact version (no semver bump)
 #   ./scripts/release.sh patch --no-push   # tag locally only
 #   ./scripts/release.sh minor --yes       # skip confirmation
 #   ./scripts/release.sh patch --skip-build  # skip preflight (CI already built)
@@ -20,23 +21,32 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BUMP="patch"
+EXACT_TAG=""
 PUSH=1
 YES=0
 SKIP_BUILD=0
 
 for arg in "$@"; do
   case "$arg" in
-    major|minor|patch) BUMP="$arg" ;;
+    major|minor|patch) BUMP="$arg"; EXACT_TAG="" ;;
+    v[0-9]*.[0-9]*.[0-9]*)
+      if [[ ! "$arg" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "error: exact tag must match vX.Y.Z (got: $arg)" >&2
+        exit 1
+      fi
+      EXACT_TAG="$arg"
+      BUMP=""
+      ;;
     --no-push) PUSH=0 ;;
     --yes|-y) YES=1 ;;
     --skip-build) SKIP_BUILD=1 ;;
     -h|--help)
-      sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
       echo "unknown argument: $arg" >&2
-      echo "usage: $0 [major|minor|patch] [--no-push] [--yes] [--skip-build]" >&2
+      echo "usage: $0 [major|minor|patch|vX.Y.Z] [--no-push] [--yes] [--skip-build]" >&2
       exit 1
       ;;
   esac
@@ -100,13 +110,29 @@ else
   echo
 fi
 
-NEXT="$("$ROOT/scripts/bump-version.sh" "$BUMP")"
 CURRENT="$(git describe --tags --abbrev=0 --match='v*' 2>/dev/null || echo 'v0.0.0')"
+
+if [[ -n "$EXACT_TAG" ]]; then
+  NEXT="$EXACT_TAG"
+  if git rev-parse "$NEXT" >/dev/null 2>&1; then
+    echo "error: tag ${NEXT} already exists locally" >&2
+    exit 1
+  fi
+  if git ls-remote --tags origin "refs/tags/${NEXT}" 2>/dev/null | grep -q .; then
+    echo "error: tag ${NEXT} already exists on origin" >&2
+    exit 1
+  fi
+  PLAN_LABEL="exact"
+else
+  NEXT="$("$ROOT/scripts/bump-version.sh" "$BUMP")"
+  PLAN_LABEL="$BUMP"
+fi
+
 VERSION="${NEXT#v}"
 DATE="$(date -u +%Y-%m-%d)"
 
 echo "Release plan"
-echo "  bump:    ${BUMP}"
+echo "  mode:    ${PLAN_LABEL}"
 echo "  current: ${CURRENT}"
 echo "  next:    ${NEXT}"
 echo "  push:    $([[ "$PUSH" -eq 1 ]] && echo yes || echo no)"

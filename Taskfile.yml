@@ -53,6 +53,11 @@ tasks:
     cmds:
       - ./scripts/release.sh major
 
+  release:tag:
+    desc: Preflight build, create exact tag vX.Y.Z, and push (e.g. task release:tag -- v0.2.0)
+    cmds:
+      - ./scripts/release.sh {{.CLI_ARGS}}
+
   goreleaser:snapshot:
     desc: Local GoReleaser snapshot (binaries only, no publish)
     cmds:
