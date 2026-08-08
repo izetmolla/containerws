@@ -12,7 +12,7 @@ Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 ### Runtime images (what you run)
 
-| Image | Tag | Base OS | What it runs |
+| Image | Tag | Base OS | What it runs | 
 |-------|-----|---------|--------------|
 | `izetmolla/containerws` | `ubuntu-26.04` | Ubuntu 26.04 (Resolute) | **Default / recommended.** systemd + OpenSSH + `cws` (UI/API on `:9000`). Softwares catalog, nested Docker volume, desktop-capable. |
 | `izetmolla/containerws` | `ubuntu-26.10` | Ubuntu 26.10 | Same stack on newer Ubuntu. |
