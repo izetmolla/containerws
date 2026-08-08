@@ -1,16 +1,13 @@
 name: Release
 
-# Publishes binary GitHub Releases via GoReleaser.
+# Single release workflow — publishes binary GitHub Releases via GoReleaser.
 #
-# Triggers:
-#   1. Push of a v* tag (e.g. from ./scripts/release.sh)
-#   2. Manual "Run workflow" from the Actions tab (bump + tag + publish)
-#   3. Optional snapshot dry-run from the Actions tab
+# Triggers (only one path runs per event):
+#   1. Push of a v* tag          → publish that tag
+#   2. Actions → Run workflow    → bump-and-publish | publish-tag | snapshot
 #
-# Manual modes (workflow_dispatch):
-#   - bump-and-publish — preflight build, bump semver, push tag, publish release
-#   - publish-tag      — publish an existing v* tag that has no release yet
-#   - snapshot         — build only (no GitHub Release)
+# Normal branch pushes do NOT run this workflow (only CI does), so you will not
+# see two overlapping release jobs on every commit.
 
 on:
   push:
@@ -44,11 +41,10 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}
+  group: release
   cancel-in-progress: false
 
 env:
-  # Aligned with filebrowser CI (Go 1.26.x / Node 24.x) and go.mod / frontend engines.
   GO_VERSION: "1.26.x"
   NODE_VERSION: "24.x"
 

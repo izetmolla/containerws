@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # release.sh — verify builds, bump version, update CHANGELOG, create annotated tag, push.
 #
-# Pushing a v* tag triggers .github/workflows/release.yml which builds the
-# frontend, runs GoReleaser (binaries only — no Docker images), and publishes
-# a GitHub Release.
+# Pushing a v* tag triggers .github/workflows/release.yml which builds and
+# publishes a GitHub Release with GoReleaser (binaries only — no Docker images).
 #
-# The GitHub Action .github/workflows/patch-release.yml also runs this flow when
-# a commit message contains "patch & release".
+# You can also release from the Actions UI: Actions → Release → Run workflow
+# (bump-and-publish / publish-tag / snapshot).
 #
 # Usage:
 #   ./scripts/release.sh [major|minor|patch]

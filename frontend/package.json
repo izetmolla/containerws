@@ -69,6 +69,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "typescript": "~7.0.2",
     "typescript-eslint": "^8.65.0",
+    "typescript6": "npm:typescript@6.0.3",
     "vite": "^8.2.0"
   },
   "engines": {

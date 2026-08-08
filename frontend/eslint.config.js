@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -9,13 +10,19 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 /**
- * typescript-eslint@8 throws on TypeScript 7 (no stable API yet).
- * Prefer a pnpm install of typescript-eslint that is bound to typescript@6.*,
- * which is already present in the local store for side-by-side tooling.
+ * typescript-eslint@8 does not support TypeScript 7 yet and throws on import when
+ * `require("typescript")` resolves to 7.x. Load it against TypeScript 6 instead:
+ * 1) Prefer a pnpm store build already bound to typescript@6.*
+ * 2) Else redirect Node's "typescript" resolution to the `typescript6` alias
+ *    (npm:typescript@6) before importing typescript-eslint.
+ *
  * @see https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0
+ * @see https://github.com/typescript-eslint/typescript-eslint/issues/10940
  */
 async function loadTypescriptEslint() {
+  const require = createRequire(import.meta.url)
   const pnpmDir = path.join(process.cwd(), 'node_modules/.pnpm')
+
   if (fs.existsSync(pnpmDir)) {
     const match = fs
       .readdirSync(pnpmDir)
@@ -40,8 +47,52 @@ async function loadTypescriptEslint() {
       }
     }
   }
-  // Fallback (works only when project typescript < 7).
-  return import('typescript-eslint')
+
+  // Fresh CI installs: only TS7 is linked. Redirect "typescript" → typescript6.
+  let ts6Main
+  try {
+    ts6Main = require.resolve('typescript6')
+  } catch {
+    throw new Error(
+      'typescript-eslint needs TypeScript 6 for ESLint under TS7. ' +
+        'Install the alias: pnpm add -D typescript6@npm:typescript@6.0.3'
+    )
+  }
+
+  const Module = require('module')
+  const originalResolveFilename = Module._resolveFilename
+  Module._resolveFilename = function (request, parent, isMain, options) {
+    if (request === 'typescript') {
+      return ts6Main
+    }
+    if (typeof request === 'string' && request.startsWith('typescript/')) {
+      const sub = request.slice('typescript/'.length)
+      return originalResolveFilename.call(
+        this,
+        `typescript6/${sub}`,
+        parent,
+        isMain,
+        options
+      )
+    }
+    return originalResolveFilename.call(this, request, parent, isMain, options)
+  }
+
+  try {
+    // Clear any cached typescript / typescript-eslint loaded against TS7.
+    for (const key of Object.keys(require.cache)) {
+      if (
+        key.includes(`${path.sep}typescript${path.sep}`) ||
+        key.includes(`${path.sep}typescript-eslint${path.sep}`) ||
+        key.includes(`${path.sep}@typescript-eslint${path.sep}`)
+      ) {
+        delete require.cache[key]
+      }
+    }
+    return await import('typescript-eslint')
+  } finally {
+    Module._resolveFilename = originalResolveFilename
+  }
 }
 
 const tseslint = await loadTypescriptEslint()

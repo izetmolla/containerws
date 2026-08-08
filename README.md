@@ -273,15 +273,14 @@ Publish archives via GoReleaser (binaries only — no Docker images).
    - **publish-tag** — publish an existing `v*` tag (enter tag like `v0.1.0`)
    - **snapshot** — dry-run build only (no GitHub Release)
 
-Or push a commit whose message contains **`patch & release`** on `main`/`master`  
-(see **Patch & Release** workflow — always does a patch bump).
+There is a single **Release** workflow (plus normal **CI** on branch pushes). Do not run two release workflows for the same version.
 
 ### Local
 
 ```bash
 ./scripts/release.sh patch   # or: minor | major
-# → preflight build (frontend typecheck/lint/build + go test/build),
-#   then tags vX.Y.Z, pushes; tag push also runs the Release workflow
+# → preflight build, then tags vX.Y.Z and pushes;
+#   the tag push runs the Release workflow once
 ```
 
 Preflight must pass before any tag is created. Use `--skip-build` only when CI already built.
