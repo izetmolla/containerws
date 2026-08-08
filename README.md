@@ -285,7 +285,7 @@ git push origin v0.2.0
 
 There is a single **Release** workflow (plus normal **CI** on branch pushes). Do not run two release workflows for the same version.
 
-### Local
+### Local (tag only — Actions builds)
 
 ```bash
 ./scripts/release.sh patch   # or: minor | major
@@ -294,9 +294,22 @@ There is a single **Release** workflow (plus normal **CI** on branch pushes). Do
 #   the tag push runs the Release workflow once
 ```
 
-Preflight must pass before any tag is created. Use `--skip-build` only when CI already built.
+### Local build + publish (skip waiting on Actions)
 
-Local build only: `./scripts/build.sh` or `task build`.
+Cross-compile with GoReleaser on your machine and upload the GitHub Release directly:
+
+```bash
+# needs: go, pnpm, goreleaser, and GITHUB_TOKEN (or gh auth login)
+./scripts/release-local.sh patch       # or: minor | major | v0.2.0
+./scripts/release-local.sh --existing-tag v0.1.0
+./scripts/release-local.sh patch --snapshot   # dist/ only, no publish
+```
+
+If the tag push starts Actions → Release afterward, cancel that run — the release is already published.
+
+Preflight must pass before any tag is created. Use `--skip-build` / `--skip-preflight` only when you already built.
+
+Local app build only: `./scripts/build.sh` or `task build`.
 
 Tooling versions match [filebrowser CI](https://github.com/filebrowser/filebrowser/blob/master/.github/workflows/ci.yaml): **Go 1.26.x**, **Node 24.x**, **pnpm 10**.
 

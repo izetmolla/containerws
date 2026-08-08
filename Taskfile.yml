@@ -58,6 +58,11 @@ tasks:
     cmds:
       - ./scripts/release.sh {{.CLI_ARGS}}
 
+  release:local:
+    desc: Local GoReleaser build + publish GitHub Release (e.g. task release:local -- patch)
+    cmds:
+      - ./scripts/release-local.sh {{.CLI_ARGS}}
+
   goreleaser:snapshot:
     desc: Local GoReleaser snapshot (binaries only, no publish)
     cmds:
