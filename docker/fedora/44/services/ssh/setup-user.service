@@ -1,0 +1,16 @@
+[Unit]
+Description=Configure root SSH user and print connection info
+After=sshd.service network-online.target
+Wants=network-online.target
+Requires=sshd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/containerws/setup_user.sh
+RemainAfterExit=yes
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/console
+
+[Install]
+WantedBy=multi-user.target

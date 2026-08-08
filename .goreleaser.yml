@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# Binary-only release config (no Docker images).
+# Inspired by https://github.com/filebrowser/filebrowser/.goreleaser.yml
+version: 2
+
+project_name: containerws
+
+env:
+  - GO111MODULE=on
+
+before:
+  hooks:
+    # Quote the whole command — unquoted ": " in YAML is parsed as a map.
+    - 'test -f frontend/static/index.html'
+
+builds:
+  - id: containerws
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/izetmolla/containerws/version.Version={{ .Version }} -X github.com/izetmolla/containerws/version.CommitSHA={{ .ShortCommit }}
+    main: ./main.go
+    binary: containerws
+    goos:
+      - darwin
+      - linux
+      - windows
+      - freebsd
+      - openbsd
+    goarch:
+      - amd64
+      - "386"
+      - arm
+      - arm64
+      - riscv64
+    goarm:
+      - "5"
+      - "6"
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: riscv64
+      # Experimental / unsupported by Go or pure-go sqlite (modernc)
+      - goos: openbsd
+        goarch: riscv64
+      - goos: openbsd
+        goarch: "386"
+      - goos: openbsd
+        goarch: arm
+      # Broken as of Go 1.24, deprecated as of Go 1.26
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: riscv64
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: riscv64
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats: ["tar.gz"]
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+    files:
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: izetmolla
+    name: containerws
+  name_template: "v{{ .Version }}"
+  draft: false
+  prerelease: auto
+  mode: replace

@@ -1,0 +1,65 @@
+version: "3"
+
+vars:
+  BIN: containerws
+  GO_PACKAGE: github.com/izetmolla/containerws
+
+tasks:
+  build:frontend:
+    desc: Build frontend assets into frontend/static (embedded by Go)
+    dir: frontend
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm run build
+
+  build:backend:
+    desc: Build backend binary with version ldflags
+    cmds:
+      - >
+        go build -ldflags='-s -w
+        -X "{{.GO_PACKAGE}}/version.Version={{.VERSION}}"
+        -X "{{.GO_PACKAGE}}/version.CommitSHA={{.GIT_COMMIT}}"'
+        -o {{.BIN}} .
+    vars:
+      GIT_COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+      VERSION:
+        sh: |
+          git describe --tags --abbrev=0 --match='v*' 2>/dev/null | sed 's/^v//' || echo "0.0.0-dev"
+
+  build:
+    desc: Build frontend then backend
+    cmds:
+      - task: build:frontend
+      - task: build:backend
+
+  release:dry-run:
+    desc: Preview next version bump (does not write)
+    cmds:
+      - ./scripts/bump-version.sh --dry-run {{.CLI_ARGS}}
+
+  release:patch:
+    desc: Bump patch version, tag, and push (triggers GitHub Release)
+    cmds:
+      - ./scripts/release.sh patch
+
+  release:minor:
+    desc: Bump minor version, tag, and push (triggers GitHub Release)
+    cmds:
+      - ./scripts/release.sh minor
+
+  release:major:
+    desc: Bump major version, tag, and push (triggers GitHub Release)
+    cmds:
+      - ./scripts/release.sh major
+
+  goreleaser:snapshot:
+    desc: Local GoReleaser snapshot (binaries only, no publish)
+    cmds:
+      - task: build:frontend
+      - goreleaser release --snapshot --clean --skip=publish
+
+  goreleaser:check:
+    desc: Validate .goreleaser.yml
+    cmds:
+      - goreleaser check

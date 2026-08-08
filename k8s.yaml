@@ -1,0 +1,145 @@
+# Kubernetes manifest for Container Workspace — mirrors docker-compose.yaml
+# (privileged workspace: nested Docker, desktop apps; no GPU).
+#
+# Apply:
+#   kubectl apply -f k8s.yaml
+#   kubectl -n containerws create secret generic containerws-secrets \
+#     --from-literal=ROOT_PWD='change-me' \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#
+# Host mounts (create on the node first):
+#   /mnt/STORAGE1/containerws/workspace  →  /workspace
+#   /mnt/STORAGE1/containerws/keys       →  /root/.ssh
+#
+# Static access via externalIPs 10.10.40.20 (node must accept/route that IP).
+# ClusterIP is auto-allocated from serviceSubnet 10.96.0.0/12 — do not set
+# a LAN address as clusterIP.
+# No cpu/memory requests or limits (BestEffort).
+# Trade-off: privileged + unconfined sandboxes — trusted workspace only.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: containerws
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: containerws
+  namespace: containerws
+  labels:
+    app: containerws
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: containerws
+  template:
+    metadata:
+      labels:
+        app: containerws
+    spec:
+      hostname: containerws
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: containerws
+          image: izetmolla/containerws:ubuntu-26.04
+          imagePullPolicy: Always
+          command: ["/bin/sh", "/entrypoint.sh"]
+          tty: true
+          stdin: true
+          ports:
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+            - name: port-8010
+              containerPort: 8010
+              protocol: TCP
+            - name: port-8011
+              containerPort: 8011
+              protocol: TCP
+          env:
+            - name: ENV
+              value: production
+            - name: container
+              value: docker
+            - name: CONTAINERWS_INIT
+              value: auto
+            - name: ROOT_SSH_PUBLIC_KEY
+              value: ""
+            - name: ROOT_PWD
+              value: ""
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            # Desktop apps (XFCE/glycin/bwrap, Chromium/Electron) — same as compose security_opt.
+            appArmorProfile:
+              type: Unconfined
+            seccompProfile:
+              type: Unconfined
+            capabilities:
+              drop:
+                - SYS_MODULE
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: ssh-keys
+              mountPath: /root/.ssh
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 6
+      volumes:
+        - name: workspace
+          hostPath:
+            path: /mnt/STORAGE1/containerws/workspace
+            type: DirectoryOrCreate
+        - name: ssh-keys
+          hostPath:
+            path: /mnt/STORAGE1/containerws/keys
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: containerws
+  namespace: containerws
+  labels:
+    app: containerws
+spec:
+  type: ClusterIP
+  selector:
+    app: containerws
+  externalIPs:
+    - 10.10.40.20
+  ports:
+    - name: ssh
+      protocol: TCP
+      port: 22
+      targetPort: 22
+    - name: http
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+    - name: port-8010
+      protocol: TCP
+      port: 8010
+      targetPort: 8010
+    - name: port-8011
+      protocol: TCP
+      port: 8011
+      targetPort: 8011

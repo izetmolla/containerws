@@ -1,0 +1,13 @@
+tmp/
+data/
+frontend/dist/
+frontend/node_modules/
+frontend/package-lock.json
+frontend/static
+.env
+.gocache/
+dist/
+.tools/
+.pnpm-store/
+node_modules/
+.cursor/

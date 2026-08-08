@@ -1,0 +1,5 @@
+# Shell scripts must stay LF — CRLF breaks Docker ENTRYPOINT shebangs
+# ("exec /entrypoint.sh: no such file or directory" / bad interpreter /bin/sh^M).
+*.sh text eol=lf
+**/entrypoint.sh text eol=lf
+**/setup_user.sh text eol=lf

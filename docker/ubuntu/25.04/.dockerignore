@@ -1,0 +1,49 @@
+# Ignore file for docker/ubuntu/25.04/Dockerfile (BuildKit).
+# Patterns are relative to the repo-root build context.
+
+# VCS / editor / local runtime
+.git
+.gitignore
+.gitattributes
+.cursor
+.vscode
+.idea
+.air.toml
+.tmp
+tmp
+.env
+.env.*
+**/.DS_Store
+**/Thumbs.db
+
+# Host-only docs and deploy helpers (not COPY'd into the image)
+**/*.md
+!frontend/README.md
+deploy.sh
+docker-compose.yaml
+docker-compose*.yml
+docker-compose*.yaml
+
+# Frontend artifacts / deps (rebuilt in the image)
+frontend/node_modules
+frontend/dist
+frontend/static
+frontend/.vite
+
+# Toolkit and caches not used by OS runtime images
+tools
+**/__pycache__
+**/*.pyc
+
+# Sibling OS / version trees (this build only needs docker/ubuntu/25.04)
+docker/debian
+docker/fedora
+docker/ubuntu/25.10
+docker/ubuntu/26.04
+docker/ubuntu/26.10
+docker/kali
+
+# Local mounts / caches under this tree
+docker/ubuntu/25.04/config
+docker/ubuntu/25.04/softwares
+**/downloads

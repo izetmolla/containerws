@@ -1,0 +1,43 @@
+# VCS / editor / local runtime
+.git
+.gitignore
+.gitattributes
+.cursor
+.vscode
+.idea
+.air.toml
+.tmp
+tmp
+.env
+.env.*
+**/.DS_Store
+**/Thumbs.db
+.tools/
+dist/
+
+node_modules/.pnpm-store/
+.pnpm-store/
+
+# Host-only docs and deploy helpers
+**/*.md
+!frontend/README.md
+deploy.sh
+docker-compose.yaml
+docker-compose*.yml
+docker-compose*.yaml
+
+# Frontend artifacts / deps (rebuilt in the image)
+frontend/node_modules
+frontend/dist
+frontend/static
+frontend/.vite
+
+# Toolkit (imported as BINOPT_IMAGE, not copied from context)
+tools
+**/__pycache__
+**/*.pyc
+
+# Local mounts / caches under docker trees
+docker/**/config
+docker/**/softwares
+**/downloads

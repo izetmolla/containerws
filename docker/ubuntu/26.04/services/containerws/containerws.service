@@ -1,0 +1,21 @@
+[Unit]
+Description=Container Workspace (cws)
+Documentation=https://github.com/izetmolla/containerws
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=ENV=production
+ExecStart=/usr/local/bin/cws --start
+Restart=on-failure
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=15
+# Docker captures the container TTY (/dev/console) when compose has tty: true.
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/console
+
+[Install]
+WantedBy=multi-user.target

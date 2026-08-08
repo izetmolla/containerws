@@ -1,0 +1,47 @@
+# Ignore file for docker/debian/12/Dockerfile (BuildKit).
+# Patterns are relative to the repo-root build context.
+
+# VCS / editor / local runtime
+.git
+.gitignore
+.gitattributes
+.cursor
+.vscode
+.idea
+.air.toml
+.tmp
+tmp
+.env
+.env.*
+**/.DS_Store
+**/Thumbs.db
+
+# Host-only docs and deploy helpers (not COPY'd into the image)
+**/*.md
+!frontend/README.md
+deploy.sh
+docker-compose.yaml
+docker-compose*.yml
+docker-compose*.yaml
+
+# Frontend artifacts / deps (rebuilt in the image)
+frontend/node_modules
+frontend/dist
+frontend/static
+frontend/.vite
+
+# Toolkit and caches not used by OS runtime images
+tools
+**/__pycache__
+**/*.pyc
+
+# Sibling OS / version trees (this build only needs docker/debian/12)
+docker/ubuntu
+docker/fedora
+docker/debian/13
+docker/kali
+
+# Local mounts / caches under this tree
+docker/debian/12/config
+docker/debian/12/softwares
+**/downloads

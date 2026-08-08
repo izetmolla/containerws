@@ -1,0 +1,45 @@
+#!/bin/sh
+# Strip + UPX-compress a binary in place.
+# Safe for cross-compiled ELF: strip failures are ignored (Go -ldflags=-s -w
+# already drops most symbols); UPX packs foreign arches from the host tools.
+set -eu
+
+usage() {
+  cat <<EOF
+Usage: optimize <binary> [upx-args...]
+
+  strip --strip-unneeded <binary>   (best-effort)
+  upx --best --lzma <binary>        (default UPX flags; override via args)
+
+Examples:
+  optimize /out/cws
+  optimize /out/cws --best --lzma
+EOF
+}
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ] || [ $# -lt 1 ]; then
+  usage
+  [ $# -ge 1 ] && [ "$1" != "-h" ] && [ "$1" != "--help" ] && exit 1
+  exit 0
+fi
+
+bin="$1"
+shift
+
+if [ ! -f "${bin}" ]; then
+  echo "optimize: not a file: ${bin}" >&2
+  exit 1
+fi
+
+echo "optimize: strip ${bin}"
+if ! strip --strip-unneeded "${bin}"; then
+  echo "optimize: strip skipped (unsupported arch or already stripped)" >&2
+fi
+
+if [ $# -eq 0 ]; then
+  set -- --best --lzma
+fi
+
+echo "optimize: upx $* ${bin}"
+upx "$@" "${bin}"
+ls -lh "${bin}"

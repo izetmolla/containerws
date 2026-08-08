@@ -1,0 +1,82 @@
+# Dev compose (Linux/WSL) — hardened host isolation while keeping
+# full GPU / CPU / nested Docker / desktop apps working.
+#
+# Isolation applied:
+#   - cgroup: private (NO cgroup: host)
+#   - NO /sys/fs/cgroup host bind-mount
+#   - cap_drop: SYS_MODULE (blocks host kernel module load)
+#
+# Still required for nested Docker + XFCE/Chrome/Electron desktop:
+#   - privileged: true
+#   - apparmor:unconfined (Ubuntu 26.04 GTK glycin/bwrap)
+#   - seccomp:unconfined (Chromium/Electron)
+#   - gpus: all (full GPU)
+#   - no CPU/memory limits
+#
+# Trade-off: privileged + unconfined sandboxes are powerful — treat as
+# a trusted workspace, not a multi-tenant sandbox.
+services:
+  containerwsdev:
+    build:
+      context: .
+      dockerfile: docker/ubuntu/26.04/Dockerfile
+    container_name: containerwsdev
+    restart: unless-stopped
+    hostname: containerwsdev
+    tty: true
+    stop_signal: SIGRTMIN+3
+    # Avoid "exec /entrypoint.sh: no such file" from CRLF shebangs in older images.
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+
+    # Nested Docker + device access (GPU, fuse, loop, …). Do not remove
+    # unless you drop DinD / desktop softwares.
+    privileged: true
+    # Private cgroup NS — do not share the host cgroup tree.
+    cgroup: private
+    # Full GPU passthrough (requires NVIDIA Container Toolkit / Docker GPU support).
+    gpus: "all"
+    # No CPU / memory caps — full host compute available to the container.
+    # Larger /dev/shm for Chrome, Electron, VS Code, Cursor, browsers.
+    shm_size: "2gb"
+
+    tmpfs:
+      - /run:exec,mode=755
+      - /run/lock:mode=755
+      - /tmp:exec,mode=1777
+
+    environment:
+      ENV: production
+      container: docker
+      # Prefer systemd when private cgroup2 works (nested docker units, ssh, cws).
+      # Entrypoint falls back to direct mode if cgroup2 is unusable.
+      CONTAINERWS_INIT: auto
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      ROOT_PWD: ""
+      ROOT_SSH_PUBLIC_KEY: ""
+
+    # Desktop apps (XFCE icons via glycin/bwrap, Chromium/Electron).
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+
+    # WSL/container kernels cannot load modules; also reduces host kmod risk.
+    cap_drop:
+      - SYS_MODULE
+
+    volumes:
+      - ./tmp/config:/config
+      - containerws-docker-data:/var/lib/docker
+      # Intentionally NO /sys/fs/cgroup host bind-mount.
+
+    networks:
+      VLAN26:
+        ipv4_address: 10.10.26.113
+
+volumes:
+  containerws-docker-data:
+    name: containerwsdev-docker-data
+
+networks:
+  VLAN26:
+    external: true
