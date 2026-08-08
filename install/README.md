@@ -48,21 +48,27 @@ sudo bash install.sh --uninstall
    - `/etc/containerws/environment` — daemon env (`ENV=production`)  
    - `/var/lib/containerws`, `/var/log/containerws`  
 4. **Binary** — downloads `containerws_<ver>_<os>_<arch>.tar.gz` from GitHub Releases (same layout as GoReleaser), or copies `--binary`  
-5. **Daemon** — installs and starts a service that runs `cws --start`:
+5. **Daemon** — installs and **starts** a service that runs `cws --start`:
 
 | OS / init | Unit |
 |-----------|------|
-| Linux systemd | `/etc/systemd/system/containerws.service` |
+| Linux systemd (actually running) | `/etc/systemd/system/containerws.service` |
 | macOS launchd | `/Library/LaunchDaemons/com.izetmolla.containerws.plist` |
 | OpenRC | `/etc/init.d/containerws` |
 | FreeBSD | `/usr/local/etc/rc.d/containerws` |
+| No usable init (Docker/WSL/containers) | **direct** — `/usr/local/lib/containerws/bin/cws-daemon.sh` + pidfile + `@reboot` cron |
+
+If systemd’s `systemctl` exists but systemd is **not** PID 1 (common in Docker), the installer uses **direct** mode and still starts `cws --start` in the background. Install fails if the daemon does not stay up.
 
 ## After install
 
 ```bash
 cws version
 systemctl status containerws          # Linux systemd
-journalctl -u containerws -f
+# or (direct / no systemd):
+/usr/local/lib/containerws/bin/cws-daemon.sh status
+journalctl -u containerws -f          # systemd
+tail -f /var/log/containerws/cws.err.log   # direct
 
 # Web UI
 open http://127.0.0.1:9000

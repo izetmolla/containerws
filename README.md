@@ -1,10 +1,39 @@
 # Container Workspace (containerws)
 
-Container Workspace is a full Linux workspace in Docker: systemd (when available), SSH, a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor).
+Container Workspace is a full Linux workspace: a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor). Run it as a **native binary** on the host, or as a Docker image with systemd/SSH when available.
 
 Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 `izetmolla/containerws:<distro>-<version>`
+
+---
+
+## Quick install — native binary (recommended on bare metal / VM)
+
+Installs the latest GitHub Release binary, links `cws` / `containerws`, prepares `/config/containerws`, and starts a daemon that runs `cws --start` (systemd, launchd, OpenRC, FreeBSD rc, or **direct** mode when no init is available):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/izetmolla/containerws/main/install/install.sh | bash
+```
+
+Or download first:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/izetmolla/containerws/main/install/install.sh -o /tmp/cws-install.sh
+sudo bash /tmp/cws-install.sh
+```
+
+Useful flags:
+
+```bash
+sudo bash /tmp/cws-install.sh --version v0.2.0    # specific release
+sudo bash /tmp/cws-install.sh --no-start         # install only, do not start
+sudo bash /tmp/cws-install.sh --uninstall        # remove binary + daemon (keeps /config)
+```
+
+After install: open **http://127.0.0.1:9000**. Check status with `systemctl status containerws` (systemd) or `/usr/local/lib/containerws/bin/cws-daemon.sh status` (direct mode).
+
+Full details: [install/README.md](install/README.md).
 
 ---
 
