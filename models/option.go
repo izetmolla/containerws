@@ -25,10 +25,13 @@ const (
 	OptionWorkspaceName        = "WORKSPACE_NAME"
 	OptionWorkspaceDescription = "WORKSPACE_DESCRIPTION"
 
-	// Module sidebar visibility (General settings). Missing → enabled (backward compatible).
+	// Module sidebar visibility (General settings). Missing → disabled (opt-in).
+	// EnsureModuleSidebarDefaults seeds explicit values on first boot.
 	OptionDockerModuleEnabled       = "DOCKER_MODULE_ENABLED"
 	OptionKubernetesModuleEnabled   = "KUBERNETES_MODULE_ENABLED"
 	OptionProxymanagerModuleEnabled = "PROXYMANAGER_MODULE_ENABLED"
+	// OptionModuleSidebarDefaultsSeeded marks that first-boot module defaults were applied.
+	OptionModuleSidebarDefaultsSeeded = "MODULE_SIDEBAR_DEFAULTS_SEEDED"
 
 	// Kubernetes — kubeconfig location / context / managed file registry.
 	// Cluster state is always read from the Kubernetes API.
@@ -118,13 +121,51 @@ func GetOptionBool(db *gorm.DB, name string) (value bool, ok bool, err error) {
 }
 
 // ModuleEnabled returns whether a module sidebar entry should be shown.
-// Missing option defaults to true so existing installs keep their menus.
+// Missing option defaults to false (opt-in). Call EnsureModuleSidebarDefaults
+// on startup so existing installs keep menus and new installs stay off.
 func ModuleEnabled(db *gorm.DB, name string) bool {
 	v, ok, err := GetOptionBool(db, name)
 	if err != nil || !ok {
-		return true
+		return false
 	}
 	return v
+}
+
+// EnsureModuleSidebarDefaults seeds Docker / Kubernetes / Proxy Manager toggles.
+// Brand-new databases get false (off). Existing databases that never stored the
+// keys get true once so previously visible sidebar modules stay available.
+func EnsureModuleSidebarDefaults(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	if _, seeded, err := GetOption(db, OptionModuleSidebarDefaultsSeeded); err != nil {
+		return err
+	} else if seeded {
+		return nil
+	}
+
+	var userCount, optionCount int64
+	_ = db.Model(&User{}).Count(&userCount).Error
+	_ = db.Model(&Option{}).Count(&optionCount).Error
+	// Any prior data ⇒ treat as upgrade and keep modules on when keys are missing.
+	legacyDefaultOn := userCount > 0 || optionCount > 0
+
+	keys := []string{
+		OptionDockerModuleEnabled,
+		OptionKubernetesModuleEnabled,
+		OptionProxymanagerModuleEnabled,
+	}
+	for _, key := range keys {
+		if _, found, err := GetOption(db, key); err != nil {
+			return err
+		} else if found {
+			continue
+		}
+		if err := SetOptionBool(db, key, legacyDefaultOn); err != nil {
+			return err
+		}
+	}
+	return SetOption(db, OptionModuleSidebarDefaultsSeeded, "1")
 }
 
 // SetOptionBool stores a boolean option as "true" or "false".
