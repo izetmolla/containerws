@@ -1,0 +1,41 @@
+---
+sidebar_position: 2
+---
+
+# Homebrew
+
+Tap: [izetmolla/homebrew-tap](https://github.com/izetmolla/homebrew-tap).
+
+## Install
+
+```bash
+brew install --cask izetmolla/tap/containerws
+```
+
+Or:
+
+```bash
+brew tap izetmolla/tap
+brew install --cask containerws
+```
+
+## Start the daemon
+
+Brew only installs the binary. Create the `cws` link, host dirs, and background service:
+
+```bash
+sudo containerws setup
+```
+
+This mirrors the post-binary steps of `install/install.sh`. Details: [Setup command](../configuration/setup-command.mdx).
+
+Upgrade later:
+
+```bash
+brew upgrade --cask izetmolla/tap/containerws
+sudo containerws setup   # if needed after major layout changes
+```
+
+## Caveats
+
+After install, Homebrew prints caveats pointing at `sudo containerws setup`. If passwordless sudo is available, the cask post-install hook may run setup automatically.

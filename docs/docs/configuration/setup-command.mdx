@@ -1,0 +1,35 @@
+---
+sidebar_position: 4
+---
+
+# Setup command
+
+```bash
+sudo containerws setup
+# or
+containerws setup            # re-execs with sudo when needed
+containerws setup --no-start
+sudo containerws setup --uninstall
+```
+
+## What it does
+
+Mirrors the post-binary steps of [`install/install.sh`](../install/native-binary.mdx):
+
+1. Create `/config/containerws`, `/etc/containerws`, log dirs
+2. Write `/etc/containerws/environment` if missing
+3. Symlink `cws` (and `containerws`) under `/usr/local/bin` and Homebrew prefix when present
+4. Install systemd / launchd / OpenRC / FreeBSD / **direct** daemon for `cws --start`
+5. Start the daemon (unless `--no-start`)
+
+Implementation: `cmd/setup.go` + `packages/hostsetup`.
+
+## When to run
+
+- After **Homebrew** install/upgrade of the cask
+- When you have a binary on PATH but no `cws` link or daemon
+- `--uninstall` removes links and service units; **keeps** `/config` data
+
+## Local releases
+
+`./scripts/release-local.sh` publishes GitHub Release binaries and updates the Homebrew tap over SSH. End users still run `sudo containerws setup` once on the machine.

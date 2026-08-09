@@ -11,15 +11,17 @@
 #   ./scripts/release-local.sh patch --yes
 #   ./scripts/release-local.sh patch --skip-preflight
 #   ./scripts/release-local.sh patch --no-push   # publish release but do not push git tag
+#   ./scripts/release-local.sh patch --skip-brew # skip Homebrew tap SSH publish
 #
-# Requires: go, pnpm, goreleaser ≥2
-# Auth (publish only): GITHUB_TOKEN / GH_TOKEN, or `gh auth login` (repo scope)
-# Homebrew tap (optional): HOMEBREW_TAP_TOKEN — PAT with contents:write on izetmolla/homebrew-tap
-#   (falls back to GITHUB_TOKEN when unset so a broad PAT can update the tap too)
+# Requires: go, pnpm, goreleaser ≥2, git, ssh access to GitHub
+# Auth (GitHub Release): GITHUB_TOKEN / GH_TOKEN, or `gh auth login` (repo scope)
+# Homebrew tap (https://github.com/izetmolla/homebrew-tap):
+#   After binaries publish, this script pushes dist/homebrew/Casks/containerws.rb
+#   over SSH (git@github.com) using your GitHub SSH key — no HOMEBREW_TAP_TOKEN needed.
+#   Optional: HOMEBREW_TAP_SSH_KEY=/path/to/id_ed25519  (else ~/.ssh/id_ed25519|id_rsa)
 #
-# Tip: after a successful publish + tag push, GitHub may still start the Release
-# workflow from the tag. Cancel that run — the release is already published
-# (goreleaser mode: replace would only redo the same work).
+# Tip: prefer this script for full releases. There is no Actions Release workflow
+# on v* tags — only CI runs on branch pushes.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,9 +33,10 @@ YES=0
 SKIP_PREFLIGHT=0
 PUSH=1
 SNAPSHOT=0
+SKIP_BREW=0
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -55,6 +58,7 @@ while [[ $# -gt 0 ]]; do
     --skip-preflight|--skip-build) SKIP_PREFLIGHT=1; shift ;;
     --no-push) PUSH=0; shift ;;
     --snapshot) SNAPSHOT=1; shift ;;
+    --skip-brew) SKIP_BREW=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *)
       echo "unknown argument: $1" >&2
@@ -177,13 +181,21 @@ fi
 echo "==> GoReleaser publish → GitHub Release ${TAG}"
 export GITHUB_TOKEN="$TOKEN"
 export GH_TOKEN="$TOKEN"
-# Prefer dedicated tap token; otherwise reuse the publish token (must reach homebrew-tap).
-export HOMEBREW_TAP_TOKEN="${HOMEBREW_TAP_TOKEN:-$TOKEN}"
+# Local releases publish the Homebrew tap over SSH after GoReleaser (see below).
+# Keep GoReleaser's token upload off so a missing/invalid PAT does not fail the release.
+export HOMEBREW_TAP_TOKEN=""
 goreleaser release --clean
 
 echo
 echo "✓ Published https://github.com/izetmolla/containerws/releases/tag/${TAG}"
-echo "  Homebrew: brew install izetmolla/tap/containerws  (if homebrew-tap was updated)"
+
+if [[ "$SKIP_BREW" -eq 1 ]]; then
+  echo "==> Skipping Homebrew tap publish (--skip-brew)"
+else
+  chmod +x "$ROOT/scripts/publish-homebrew-tap.sh"
+  echo "==> Homebrew tap publish over SSH → https://github.com/izetmolla/homebrew-tap"
+  "$ROOT/scripts/publish-homebrew-tap.sh" --tag "$TAG"
+fi
 
 if [[ "$PUSH" -eq 1 ]]; then
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
@@ -195,9 +207,6 @@ if [[ "$PUSH" -eq 1 ]]; then
     git push origin "$BRANCH"
     git push origin "refs/tags/${TAG}"
   fi
-  echo
-  echo "Note: the tag push may start Actions → Release. Cancel that run;"
-  echo "binaries are already on the GitHub Release."
 else
   echo "Skipped git push (--no-push). Tag/release exist; push when ready:"
   echo "  git push origin HEAD && git push origin ${TAG}"

@@ -1,0 +1,29 @@
+---
+sidebar_position: 4
+---
+
+# Users
+
+**UI:** `/users` and per-user tabs (general, VNC, shell, noVNC, keys, logs, storage).
+
+## Panel ↔ Linux sync
+
+On `--start`, when sync is enabled (`ENV=production` or `--sync-users` / `SYNC_USERS`):
+
+- Linux login accounts missing from the DB are inserted
+- Panel users whose username is missing on Linux get a full account (home + shell)
+
+## Per-user features
+
+| Tab | Purpose |
+|-----|---------|
+| General | Profile / status |
+| Keys | SSH public keys |
+| Storage | Home / disk usage helpers |
+| VNC / noVNC | Desktop session controls |
+| Shell | User shell session helpers |
+| Logs | Related logs |
+
+CLI: `cws users ls|get|add|update|rm`.
+
+Auth UI: sign-in, register, forgot-password under Authorization routes.

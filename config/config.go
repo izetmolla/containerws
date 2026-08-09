@@ -193,5 +193,5 @@ func (app *AppClients) FreshUserRoles(ctx context.Context, userID string, fallba
 
 // ModuleName identifies this application for module-scoped environments and render data.
 func (a *AppClients) ModuleName() string {
-	return "uetapp"
+	return "containerws"
 }

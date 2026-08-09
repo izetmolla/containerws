@@ -1,0 +1,50 @@
+---
+sidebar_position: 2
+---
+
+# Requirements
+
+## Host requirements (Docker / WSL)
+
+- Docker Engine **or** Docker Desktop (WSL2 backend)
+- Docker Compose v2 (`docker compose`)
+- Recommended: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) if you want `gpus: all`
+- Treat these containers as a **trusted personal workspace**
+
+## Security model
+
+Runtime images and compose examples use:
+
+- `privileged: true`
+- Unconfined AppArmor / seccomp (where applicable)
+- Nested Docker and desktop apps need broad capabilities
+
+Do **not** expose an untrusted multi-tenant public network without additional hardening. See [Security](../reference/security.mdx).
+
+## WSL / Docker Desktop (important)
+
+Do **not** use `cgroup: host` or bind-mount host `/sys/fs/cgroup` into the container on WSL — that breaks systemd (`ef53` / cgroup hierarchy issues).
+
+Use:
+
+- `cgroup: private` (Compose) / `--cgroupns=private` (CLI)
+- **no** `/sys/fs/cgroup` host bind
+- `cap_drop: [SYS_MODULE]`
+- `CONTAINERWS_INIT=auto` (falls back to direct `cws` + `sshd` if systemd cannot start)
+
+If systemd still fails:
+
+```yaml
+environment:
+  CONTAINERWS_INIT: direct
+```
+
+## Native binary
+
+- Linux, macOS, FreeBSD/OpenBSD (per GoReleaser targets)
+- Root/sudo for `install.sh` or `containerws setup` (daemon + `/usr/local/bin/cws`)
+- Windows **hosts** are not supported by `install.sh` — use Docker Desktop instead
+
+## Resources
+
+See [Resource allocation](../install/resources.mdx) for `shm_size`, GPU, Kubernetes BestEffort, and volume layout.

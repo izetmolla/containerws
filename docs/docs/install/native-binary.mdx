@@ -1,0 +1,66 @@
+---
+sidebar_position: 1
+---
+
+# Native binary
+
+Installs the released `containerws` binary, prepares host directories, links the `cws` CLI, and installs an OS daemon that runs `cws --start`.
+
+Full installer details: [`install/README.md`](https://github.com/izetmolla/containerws/blob/main/install/README.md) in the repo.
+
+## Quick install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/izetmolla/containerws/main/install/install.sh | bash
+```
+
+Or download first:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/izetmolla/containerws/main/install/install.sh -o /tmp/cws-install.sh
+sudo bash /tmp/cws-install.sh
+```
+
+## Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--version vX.Y.Z` | Install a specific GitHub Release tag |
+| `--binary ./containerws` | Install a local binary instead of downloading |
+| `--repo owner/name` | Override GitHub repo |
+| `--no-start` | Install + enable daemon, do not start yet |
+| `--uninstall` | Stop daemon and remove binaries/links (keeps `/config`) |
+
+## Layout
+
+| Path | Purpose |
+|------|---------|
+| `/usr/local/lib/containerws/bin/containerws` | Binary |
+| `/usr/local/bin/cws`, `/usr/local/bin/containerws` | CLI symlinks |
+| `/config/containerws/{database,ssl,vnc-sessions}` | App data |
+| `/etc/containerws/environment` | Daemon env (`ENV=production`) |
+
+## Daemon backends
+
+| Init | Unit / helper |
+|------|----------------|
+| systemd | `/etc/systemd/system/containerws.service` |
+| launchd | `/Library/LaunchDaemons/com.izetmolla.containerws.plist` |
+| OpenRC / SysV | `/etc/init.d/containerws` |
+| FreeBSD | `/usr/local/etc/rc.d/containerws` |
+| **direct** | `/usr/local/lib/containerws/bin/cws-daemon.sh` + pidfile |
+
+## After install
+
+```bash
+cws version
+systemctl status containerws          # systemd
+# or:
+/usr/local/lib/containerws/bin/cws-daemon.sh status
+```
+
+Open **http://127.0.0.1:9000**.
+
+:::tip Homebrew users
+Prefer [`brew install`](./homebrew.mdx) then `sudo containerws setup` — see [Setup command](../configuration/setup-command.mdx).
+:::

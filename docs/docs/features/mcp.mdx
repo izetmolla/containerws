@@ -1,0 +1,40 @@
+---
+sidebar_position: 12
+---
+
+# MCP
+
+Model Context Protocol server for agents (Cursor, etc.).
+
+## Endpoints
+
+| Endpoint | When |
+|----------|------|
+| **`/mcp`** on the main app port (9000) | Always mounted with the API |
+| `http://HOST:MCP_PORT/` | Optional **standalone** listener (`MCP_PORT` or Settings → MCP) |
+
+:::info Path
+The live mount is **`/mcp`**. Some older notes mentioned `/api/mcp` — use `/mcp`.
+:::
+
+## Auth
+
+Provide a key via:
+
+- `Authorization: Bearer <key>`
+- `X-Api-Key` / `X-Auth-Token`
+- `?token=`
+
+Keys live in **Settings → MCP** (`mcp_keys` table). Optional bootstrap: env `MCP_TOKEN`.
+
+**Loopback exception:** requests from `127.0.0.1` / `::1` may omit the key.
+
+## Resources & prompts
+
+Agents should read `cws://docs/overview` and domain guides (`bash`, `filesystem`, `browser`, `softwares`, `brew`, `softwarepkg`, `kubernetes`, `docker`, `auth`).
+
+Prompts include `browser_task`, `workspace_setup`, `create_software_package`, `kubernetes_cluster_pick`.
+
+## Tool surface
+
+See [MCP tools reference](../reference/mcp-tools.mdx) for the full tool group list (~99 tools).

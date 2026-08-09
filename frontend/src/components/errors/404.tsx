@@ -4,7 +4,7 @@ import { Link } from "react-router"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-const SUPPORT_EMAIL = "support@uet.edu.al"
+const SUPPORT_EMAIL = "imolla3@icloud.com"
 
 const NotFound404: FC = () => {
   return (

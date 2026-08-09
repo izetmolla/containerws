@@ -18,7 +18,6 @@ export type Student = {
   phone?: string
   mobile?: string
   email?: string
-  email_uet?: string
   document_id?: string
   document_type?: string
   department?: string

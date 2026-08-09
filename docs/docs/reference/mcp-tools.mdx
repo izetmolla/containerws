@@ -1,0 +1,48 @@
+---
+sidebar_position: 2
+---
+
+# MCP tools
+
+Endpoint: **`/mcp`** (and optional standalone `MCP_PORT`). Auth: see [MCP](../features/mcp.mdx).
+
+## Tool groups
+
+### bash
+
+`bash` — shell with long `timeout_seconds`; Linuxbrew on PATH when present.
+
+### filesystem
+
+`read_file`, `write_file`, `edit_file`, `list_directory`, `make_directory`, `delete_path`, `move_path`, `copy_path`, `stat_path`, `search_files`, `zip_paths`, `unzip_path`.
+
+### browser
+
+Chromium automation: `browser_status`, `browser_open`, `browser_navigate`, `browser_a11y_snapshot`, `browser_find`, `browser_click`, `browser_fill`, `browser_fill_form`, `browser_type`, `browser_press`, `browser_select`, `browser_hover`, `browser_scroll`, `browser_wait`, `browser_wait_for`, `browser_assert`, `browser_extract`, `browser_snapshot`, `browser_screenshot`, `browser_evaluate`, `browser_close`.
+
+### softwares
+
+`softwares_list`, `softwares_lookup`, `softwares_install`, `softwares_service`, `softwares_queue`, `softwares_queue_dismiss`.
+
+### brew
+
+`brew_status`, `brew_search`, `brew_installed`, `brew_install`, `brew_check_updates`.
+
+### softwarepkg
+
+`softwarepkg_search`, `softwarepkg_scaffold`, `softwarepkg_create`, `softwarepkg_import`, `softwarepkg_registries`, `softwarepkg_hub_distros`, `softwarepkg_scaffold_hub`, `softwarepkg_test_install`, `softwarepkg_publish`, `softwarepkg_image`.
+
+### kubernetes
+
+`configuration_contexts_list`, `targets_list`, `configuration_view`, `configuration_set_active`, `namespaces_list`, `projects_list`, `events_list`, `pods_*`, `nodes_*`, `resources_*`, `helm_*`.
+
+### docker
+
+`docker_engine_status`, `docker_environments_list`, `docker_containers_*`, `docker_images_*`, `docker_volumes_*`, `docker_networks_list`, `docker_mcp_gateway_status`, `docker_mcp_tools_list`.
+
+## Agent rules (summary)
+
+1. Prefer specialized tools over bash when both work
+2. Observe before acting (`*_status`, `*_list`, `lookup`)
+3. Confirm destructive deletes / force removes
+4. For Kubernetes, ask which kubeconfig secret + context when multiple exist

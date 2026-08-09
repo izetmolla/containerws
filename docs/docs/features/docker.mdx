@@ -1,0 +1,26 @@
+---
+sidebar_position: 8
+---
+
+# Docker
+
+**UI:** Containers, Images, Networks, Volumes, Stacks, Templates, Environments — under the Docker module (enable in Settings → Options).
+
+## Environments
+
+Connect to local unix socket, TLS, or SSH Docker endpoints. Default local environment is ensured on use.
+
+## Common tasks
+
+- List / inspect / logs / start / stop / restart / remove containers
+- Pull / remove images
+- Manage volumes and networks
+- Compose **stacks** and templates
+
+## Nested Docker in images
+
+Runtime images mount a volume on `/var/lib/docker` for Docker-in-Docker style Engine data. Install **Docker Engine** from Softwares if needed on your tag.
+
+## MCP
+
+Prefer `docker_*` tools over raw `docker` via bash: status, environments, containers, images, volumes, networks, plus optional `docker mcp` gateway probes. See [MCP tools](../reference/mcp-tools.mdx).

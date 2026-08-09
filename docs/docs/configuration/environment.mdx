@@ -1,0 +1,28 @@
+---
+sidebar_position: 1
+---
+
+# Environment variables
+
+| Variable | Default / example | Meaning |
+|----------|-------------------|---------|
+| `ENV` | `production` | App environment (also affects usersync defaults) |
+| `CONTAINERWS_INIT` | `auto` | `auto` / `systemd` / `direct` — PID 1 strategy in containers |
+| `ROOT_PWD` | *(set your own)* | Root password at first boot (images) |
+| `ROOT_SSH_PUBLIC_KEY` | empty | Optional authorized key for root SSH |
+| `container` | `docker` | Hint for container-aware scripts |
+| `NVIDIA_VISIBLE_DEVICES` | `all` | GPU visibility |
+| `NVIDIA_DRIVER_CAPABILITIES` | `all` | NVIDIA driver caps |
+| `PORT` / `ADDRESS` | `9000` / `0.0.0.0` | Main HTTP(S) listen |
+| `ENABLE_HTTPS` | `false` | TLS on the same port; certs under config SSL dir |
+| `DATABASE_URL` | prod: `/config/containerws/database/database.sqlite` | SQLite path |
+| `MCP_PORT` | unset | Standalone MCP HTTP listener |
+| `MCP_TOKEN` | unset | Optional bootstrap MCP auth token |
+| `MCP_ADDRESS` | `0.0.0.0` | Standalone MCP bind |
+| `SYNC_USERS` | on when `ENV=production` | Linux ↔ panel user sync |
+| `CWS_VNC_PORT_MAP` | `/config/containerws/vnc-port-map.txt` | Per-user VNC/noVNC ports |
+| `CWS_VNC_SESSION_DIR` | `/config/containerws/vnc-sessions` | VNC session files |
+
+Daemon installs also write `/etc/containerws/environment` (`ENV=production` plus commented optional keys).
+
+Core server values can also live in SQLite `os_environments` (Settings → Environments). Precedence is generally: flags → environment → config file → database → defaults.

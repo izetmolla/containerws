@@ -25,7 +25,7 @@ type Config struct {
 
 func defaultConfig() *Config {
 	return &Config{
-		moduleName:      "uetapp",
+		moduleName:      "containerws",
 		withGeneralData: nil,
 		assets:          embed.FS{},
 	}

@@ -1,0 +1,38 @@
+---
+sidebar_position: 2
+---
+
+# Softwares
+
+**UI:** `/softwares`, Installing, Installed, Remote packages, per-item detail / package editor.
+
+Distro-aware catalog of installable software with scripts per OS family (apt/dnf/apk/pacman). Jobs run through a **serial install queue** so Softwares, Brew, and VNC setup do not overlap destructively.
+
+![Softwares catalog](/img/screenshots/softwares.png)
+
+## Workflows
+
+1. Browse or search the catalog
+2. **Lookup** / open an item — confirm it is listed for your host
+3. **Install** — enqueued; watch **Installing** for logs
+4. **Service** controls when the package defines start/stop/status
+5. Failed queue items can be **dismissed**
+
+CLI:
+
+```bash
+cws software list
+cws software install "Docker Engine"
+cws software status "Docker Engine"
+```
+
+MCP: `softwares_list` → `softwares_lookup` → `softwares_install` / `softwares_service` / `softwares_queue` / `softwares_queue_dismiss`.
+
+## Package authoring
+
+- Softwares → package editor / remote registries
+- MCP `softwarepkg_*` tools: search, scaffold, create, publish, hub distros, image helpers
+
+## Ownership
+
+Items installed via Softwares are **local**-owned. Brew can take ownership for matching formulae — see [Brew](./brew.mdx). Softwares sync does not overwrite active Softwares-owned installs.

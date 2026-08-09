@@ -2,6 +2,8 @@
 
 Container Workspace is a full Linux workspace: a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor). Run it as a **native binary** on the host, or as a Docker image with systemd/SSH when available.
 
+**Author:** [Izet Molla](mailto:izetmolla@icloud.com)
+
 Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 `izetmolla/containerws:<distro>-<version>`
@@ -312,49 +314,37 @@ Publish host ports with `-p 9000:9000 -p 2222:22` (or your compose `ports:` / ne
 
 ## Binary releases (GitHub)
 
-Publish archives via GoReleaser (binaries only — no Docker images).
+Publish archives via GoReleaser on your machine (binaries only — no Docker images).
+There is **no** GitHub Actions Release workflow; normal **CI** still runs on branch pushes.
 
-### From GitHub Actions (recommended)
-
-1. Open **Actions → Release → Run workflow**
-2. Choose a mode:
-   - **bump-and-publish** — build, bump `patch`/`minor`/`major`, tag, push, publish release
-   - **tag-and-publish** — create exact tag `vX.Y.Z` on the selected branch HEAD, push, publish (fails if the tag already exists)
-   - **publish-tag** — publish an **existing** `v*` tag (enter tag like `v0.1.0`; no new tag created)
-   - **snapshot** — dry-run build only (no GitHub Release)
-
-For an exact version from Actions, use **tag-and-publish** and set **tag** to e.g. `v0.2.0`. To republish a tag that is already on the remote, use **publish-tag** with the same field.
-
-Pushing a `v*` tag yourself also starts the Release workflow once (same publish path as **publish-tag**):
+### Local build + publish (recommended)
 
 ```bash
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
-```
-
-There is a single **Release** workflow (plus normal **CI** on branch pushes). Do not run two release workflows for the same version.
-
-### Local (tag only — Actions builds)
-
-```bash
-./scripts/release.sh patch   # or: minor | major
-./scripts/release.sh v0.2.0  # exact version (fails if tag exists)
-# → preflight build, then tags vX.Y.Z and pushes;
-#   the tag push runs the Release workflow once
-```
-
-### Local build + publish (skip waiting on Actions)
-
-Cross-compile with GoReleaser on your machine and upload the GitHub Release directly:
-
-```bash
-# needs: go, pnpm, goreleaser, and GITHUB_TOKEN (or gh auth login)
+# needs: go, pnpm, goreleaser, GITHUB_TOKEN (or gh auth), and SSH access to GitHub
 ./scripts/release-local.sh patch       # or: minor | major | v0.2.0
 ./scripts/release-local.sh --existing-tag v0.1.0
 ./scripts/release-local.sh patch --snapshot   # dist/ only, no publish
+./scripts/release-local.sh patch --skip-brew  # GitHub Release only (no tap push)
 ```
 
-If the tag push starts Actions → Release afterward, cancel that run — the release is already published.
+This bumps/tags, publishes the GitHub Release, then pushes `dist/homebrew/Casks/containerws.rb` to
+[`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) over **SSH**
+(`git@github.com`) using your GitHub SSH key (`~/.ssh/id_ed25519` or `HOMEBREW_TAP_SSH_KEY`).
+No `HOMEBREW_TAP_TOKEN` is required for local releases.
+
+Standalone tap publish (after a goreleaser run left `dist/homebrew/...`):
+
+```bash
+./scripts/publish-homebrew-tap.sh v0.1.3
+```
+
+### Tag only (no publish)
+
+```bash
+./scripts/release.sh patch   # or: minor | major | v0.2.0
+# → preflight, changelog, annotated tag, push — does not upload binaries
+# Prefer release-local.sh when you want the GitHub Release + Homebrew tap.
+```
 
 Preflight must pass before any tag is created. Use `--skip-build` / `--skip-preflight` only when you already built.
 
@@ -364,7 +354,7 @@ Tooling versions match [filebrowser CI](https://github.com/filebrowser/filebrows
 
 ### Homebrew tap
 
-GoReleaser updates [`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) (`Casks/containerws.rb`) on each non-prerelease publish.
+Updated automatically by `release-local.sh` / `publish-homebrew-tap.sh` over SSH.
 
 One-time setup:
 
@@ -374,13 +364,9 @@ One-time setup:
    gh repo create izetmolla/homebrew-tap --public --description "Homebrew tap for Container Workspace" --clone=false
    ```
 
-2. Create a GitHub PAT (classic `repo`, or fine-grained **Contents: Read and write** on `homebrew-tap` only).
+2. Ensure your SSH public key can push that repo.
 
-3. Add repo secret **`HOMEBREW_TAP_TOKEN`** on `izetmolla/containerws` with that PAT.
-
-4. Publish a release — cask appears in the tap; install with `brew install izetmolla/tap/containerws`.
-
-If `HOMEBREW_TAP_TOKEN` is missing, the GitHub Release still publishes and brew upload is skipped.
+3. Install: `brew install --cask izetmolla/tap/containerws` then `sudo containerws setup`.
 
 ## Build images locally
 
@@ -424,3 +410,9 @@ On app start, `softwaresync` checks `software_installed` vs the host and reinsta
 ## Security note
 
 These images are intended as a **developer workspace**, not a locked-down multi-tenant sandbox. `privileged`, `seccomp:unconfined`, and `apparmor:unconfined` enable nested Docker and desktop/Electron apps. Do not expose them to untrusted networks without additional controls. Always set your own `ROOT_PWD` / SSH keys.
+
+---
+
+## Author
+
+**Izet Molla** — [izetmolla@icloud.com](mailto:izetmolla@icloud.com)

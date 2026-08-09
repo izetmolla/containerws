@@ -1,0 +1,36 @@
+---
+sidebar_position: 7
+---
+
+# Kubernetes
+
+Manifest: [`k8s.yaml`](https://github.com/izetmolla/containerws/blob/main/k8s.yaml) — privileged workspace (nested Docker / desktop capable). **Trusted cluster only.**
+
+## Apply
+
+```bash
+kubectl apply -f k8s.yaml
+kubectl -n containerws create secret generic containerws-secrets \
+  --from-literal=ROOT_PWD='change-me' \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Wire `ROOT_PWD` from the secret into the Deployment env if you use that pattern from the file comments.
+
+## What it creates
+
+- Namespace `containerws`
+- Deployment (1 replica, `Recreate`) image `izetmolla/containerws:ubuntu-26.04`
+- Service exposing **22**, **9000**, and extras **8010** / **8011**
+- Example `externalIPs` (edit for your network)
+- HostPath mounts (create on the node first):
+  - `/mnt/STORAGE1/containerws/workspace` → `/workspace`
+  - `/mnt/STORAGE1/containerws/keys` → `/root/.ssh`
+
+## Security context
+
+- `privileged: true`
+- AppArmor / seccomp Unconfined (as in the manifest)
+- No CPU/memory requests or limits (**BestEffort**) — see [Resources](./resources.mdx)
+
+Probes target TCP **9000**.

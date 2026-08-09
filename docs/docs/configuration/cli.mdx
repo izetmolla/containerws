@@ -1,0 +1,172 @@
+---
+sidebar_position: 3
+---
+
+# CLI (`cws` / `containerws`)
+
+The Go CLI lives under [`cmd/`](https://github.com/izetmolla/containerws/tree/main/cmd). The binary is named **`containerws`** and is normally also available as **`cws`** (symlink from `install.sh` or `containerws setup`).
+
+```bash
+cws --help
+containerws --help   # same binary
+```
+
+## Start the server
+
+```bash
+cws --start
+```
+
+Runs the Fiber UI/API (default `:9000`, or `PORT` / Settings). Subcommands below work **without** `--start` (they open the DB and exit).
+
+| Flag | Meaning |
+|------|---------|
+| `--start` | Foreground server |
+| `--sync-users` | Sync Linux ↔ panel users on start |
+| `--noauth` | Quick setup without auth (dev) |
+| `--username` / `--password` | First user when using quick setup |
+| `-c` / `--config` | Config file path |
+| `-d` / `--database` | Override SQLite path (`DATABASE_URL`) |
+
+Production default enables user sync when `ENV=production` unless `SYNC_USERS` overrides.
+
+---
+
+## `cws setup`
+
+Host preparation after Homebrew or a loose binary install. See also [Setup command](./setup-command.mdx).
+
+```bash
+sudo containerws setup
+containerws setup --no-start
+sudo containerws setup --uninstall
+containerws setup --binary /path/to/containerws
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--no-start` | Install dirs/links/daemon but do not start |
+| `--uninstall` | Remove links + service units (keeps `/config`) |
+| `--binary` | Explicit binary path (default: this executable) |
+
+Creates `/config/containerws`, `/etc/containerws/environment`, `cws` symlink(s), and a systemd/launchd/OpenRC/direct daemon running `cws --start`.
+
+---
+
+## `cws version`
+
+```bash
+cws version
+# Container Workspace v0.1.2/<commit>
+```
+
+---
+
+## `cws users`
+
+Manage panel users in SQLite.
+
+```bash
+cws users ls
+cws users get <id|email|username>
+cws users add --email a@b.c --password '…' [--username …]
+cws users update <id|email|username> [--email …] [--password …]
+cws users rm <id|email|username>
+```
+
+`add` requires `--email` and `--password`. Update/add share profile flags (username, names, status, confirmed, …) — see `cws users add --help`.
+
+---
+
+## `cws software` (`softwares`, `sw`)
+
+Catalog utilities (aliases: `softwares`, `sw`).
+
+### list
+
+```bash
+cws software list
+cws software list --all      # include inactive
+cws software list --json
+```
+
+### install
+
+Runs the version install script and marks the DB on success.
+
+```bash
+cws software install Go
+cws software install "Docker Engine"
+cws software install docker --version 29.6.2
+cws software install node --dry-run   # print script only
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--version` | Specific catalog version (default: latest) |
+| `--dry-run` | Print install script without executing |
+
+### service controls
+
+For Softwares that declare systemd units:
+
+```bash
+cws software status "Docker Engine"
+cws software start docker
+cws software stop novnc
+cws software restart "XFCE + noVNC"
+cws software status docker --json
+```
+
+---
+
+## `cws vnc`
+
+TigerVNC / noVNC password helpers.
+
+```bash
+cws vnc password                 # prompt
+cws vnc password 'MyNewPass'
+cws vnc password --generate
+cws vnc password --restart=false
+cws vnc show
+```
+
+Writes `/config/containerws/vnc.pass`, `/etc/containerws/novnc_password`, and `~/.config/tigervnc/passwd`, then restarts `containerws-vnc` / `containerws-novnc` unless `--restart=false`.
+
+---
+
+## `cws cs` (`codeserver`, `code-server`)
+
+Microsoft VS Code Server (`code serve-web`) sessions.
+
+```bash
+cws cs start /workspace
+cws cs start . --token auto
+cws cs start --path /workspace --host 127.0.0.1
+cws cs status
+cws cs stop
+```
+
+| Flag (`start`) | Meaning |
+|----------------|---------|
+| `--path` | Folder to open (else cwd / arg) |
+| `--host` | Bind address (default `127.0.0.1`) |
+| `--token` | `none` \| `auto` \| secret |
+| `--restart` | Replace existing session for this user (default true) |
+
+Picks a free localhost port, stores the session in the DB, and is reachable via `/codeserver/:uuid` on the UI port. Requires Softwares **VS Code Server** / `code` CLI installed.
+
+---
+
+## Command map (source)
+
+| Command | Package file |
+|---------|----------------|
+| root / `--start` | `cmd/root.go` |
+| `setup` | `cmd/setup.go` |
+| `version` | `cmd/version.go` |
+| `users` | `cmd/users.go` |
+| `software` | `cmd/software.go`, `software_list.go`, `software_install.go`, `software_service.go` |
+| `vnc` | `cmd/vnc.go` |
+| `cs` | `cmd/codeserver.go` |

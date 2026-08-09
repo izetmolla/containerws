@@ -1,0 +1,28 @@
+---
+sidebar_position: 2
+---
+
+# Ports and volumes
+
+## Ports
+
+| Port | Service |
+|------|---------|
+| **9000** | Web UI + REST API; MCP also at **`/mcp`** on this port |
+| **22** | OpenSSH (compose often publishes `2222:22`) |
+| **MCP standalone** | `MCP_PORT` (example `9100`) when enabled |
+| **5901–5999** | TigerVNC RFB range (per-user) |
+| **6080–6179** | noVNC / websockify; UI often via **`/novnc`** on 9000 |
+| **3389** | Optional xrdp after RDP setup |
+| **8010 / 8011** | Exposed in sample `k8s.yaml` |
+| **8443** | Default Softwares “VS Code Server” script port (`CODESERVER_PORT`) |
+| Dynamic | `cws cs start` picks a free localhost port; proxied at `/codeserver/:uuid` |
+
+## Volumes / mounts
+
+| Mount | Purpose |
+|-------|---------|
+| `/config` | Persistent app state (DB, machine id, SSL, VNC). **Keep across recreate.** |
+| `/var/lib/docker` | Nested Docker Engine data (named volume recommended) |
+| `/workspace` | Optional workspace bind (K8s HostPath example) |
+| `/root/.ssh` | Optional SSH keys (K8s HostPath example) |

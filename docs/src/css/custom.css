@@ -1,0 +1,26 @@
+/**
+ * Container Workspace docs — Infima theme overrides.
+ */
+
+:root {
+  --ifm-color-primary: #1a6b8a;
+  --ifm-color-primary-dark: #17607c;
+  --ifm-color-primary-darker: #165b75;
+  --ifm-color-primary-darkest: #124b60;
+  --ifm-color-primary-light: #1d7698;
+  --ifm-color-primary-lighter: #1e7b9f;
+  --ifm-color-primary-lightest: #248bb4;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #4db8d9;
+  --ifm-color-primary-dark: #35aed4;
+  --ifm-color-primary-darker: #2ba9d1;
+  --ifm-color-primary-darkest: #248cb0;
+  --ifm-color-primary-light: #65c2de;
+  --ifm-color-primary-lighter: #6fc7e1;
+  --ifm-color-primary-lightest: #93d5e9;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}

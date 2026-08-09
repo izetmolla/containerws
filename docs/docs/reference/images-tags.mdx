@@ -1,0 +1,39 @@
+---
+sidebar_position: 1
+---
+
+# Image tags
+
+Hub: `izetmolla/containerws:<distro>-<version>` (linux/amd64 + linux/arm64).
+
+## Runtime images
+
+| Tag | Base OS |
+|-----|---------|
+| `ubuntu-26.04` | Ubuntu 26.04 — **default / recommended** |
+| `ubuntu-26.10` | Ubuntu 26.10 |
+| `ubuntu-25.10` | Ubuntu 25.10 |
+| `ubuntu-25.04` | Ubuntu 25.04 |
+| `debian-13` | Debian 13 |
+| `debian-12` | Debian 12 |
+| `kali-rolling` | Kali Rolling |
+| `fedora-44` | Fedora 44 |
+| `fedora-43` | Fedora 43 |
+
+Every runtime image:
+
+- Starts via `/entrypoint.sh` (`CONTAINERWS_INIT=auto|systemd|direct`)
+- Exposes **22** (SSH) and **9000** (UI/API)
+- Persists under **`/config`**
+- Ships Softwares catalog scripts
+
+Dockerfile sources: `docker/<os>/<version>/Dockerfile`.
+
+## Build toolkit (not a workspace)
+
+| Image | Tag | Purpose |
+|-------|-----|---------|
+| `izetmolla/binoptimization` | `latest` | strip + UPX toolkit for image builds |
+| `izetmolla/containerws` | `binoptimization` | Alias of the toolkit |
+
+Do **not** run the toolkit image as a workspace.

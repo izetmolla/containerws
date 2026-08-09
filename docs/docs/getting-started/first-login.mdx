@@ -1,0 +1,37 @@
+---
+sidebar_position: 3
+---
+
+# First login
+
+After the server is listening:
+
+| Service | URL / command |
+|---------|----------------|
+| Web UI / API | http://127.0.0.1:9000 (or your published host port) |
+| SSH (images) | `ssh -p 2222 root@localhost` when `2222:22` is published |
+| Shell into container | `docker exec -it containerws bash` |
+
+## Panel account
+
+1. Open the UI and register or sign in (routes under `/sign-in`, `/register`).
+2. On production starts, Linux ↔ panel users can sync (`SYNC_USERS` / `--sync-users`). See [Users](../features/users.mdx).
+3. Optional **localhost auto-login** can be enabled in Settings for loopback browsers (trusted hosts only).
+
+## Quick verification
+
+```bash
+# Native daemon
+cws version
+curl -fsS http://127.0.0.1:9000/ >/dev/null && echo ok
+
+# Docker
+docker logs -f containerws
+docker exec -it containerws cws version
+```
+
+## Next steps
+
+- Install catalog items: [Softwares](../features/softwares.mdx)
+- Desktop: [VNC / RDP](../features/vnc-rdp.mdx)
+- Agents: [MCP](../features/mcp.mdx)

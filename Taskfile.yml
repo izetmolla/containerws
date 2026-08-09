@@ -39,17 +39,17 @@ tasks:
       - ./scripts/bump-version.sh --dry-run {{.CLI_ARGS}}
 
   release:patch:
-    desc: Preflight build, bump patch, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump patch, tag, and push (no binary publish — use release:local)
     cmds:
       - ./scripts/release.sh patch
 
   release:minor:
-    desc: Preflight build, bump minor, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump minor, tag, and push (no binary publish — use release:local)
     cmds:
       - ./scripts/release.sh minor
 
   release:major:
-    desc: Preflight build, bump major, tag, and push (triggers GitHub Release)
+    desc: Preflight build, bump major, tag, and push (no binary publish — use release:local)
     cmds:
       - ./scripts/release.sh major
 
@@ -59,9 +59,14 @@ tasks:
       - ./scripts/release.sh {{.CLI_ARGS}}
 
   release:local:
-    desc: Local GoReleaser build + publish GitHub Release (e.g. task release:local -- patch)
+    desc: Local GoReleaser + GitHub Release + Homebrew tap over SSH (e.g. task release:local -- patch --yes)
     cmds:
       - ./scripts/release-local.sh {{.CLI_ARGS}}
+
+  release:brew:
+    desc: Push dist/homebrew cask to izetmolla/homebrew-tap over SSH (e.g. task release:brew -- v0.1.3)
+    cmds:
+      - ./scripts/publish-homebrew-tap.sh {{.CLI_ARGS}}
 
   goreleaser:snapshot:
     desc: Local GoReleaser snapshot (binaries only, no publish)
@@ -73,3 +78,17 @@ tasks:
     desc: Validate .goreleaser.yml
     cmds:
       - goreleaser check
+
+  docs:start:
+    desc: Start Docusaurus docs site (http://localhost:3000)
+    dir: docs
+    cmds:
+      - pnpm install
+      - pnpm start
+
+  docs:build:
+    desc: Build Docusaurus docs site
+    dir: docs
+    cmds:
+      - pnpm install
+      - pnpm build

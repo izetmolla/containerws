@@ -1,0 +1,27 @@
+---
+sidebar_position: 9
+---
+
+# Kubernetes UI
+
+**UI:** Cluster overview, nodes, namespaces, workloads (pods, deployments, statefulsets, daemonsets, jobs), services, ingresses, network policies, configmaps, secrets, PVCs, storage classes, applications, settings.
+
+Enable the **Kubernetes** module in Settings → Options.
+
+## Multi-cluster model
+
+Kubeconfig YAML files are stored as **secrets** in the workspace DB. Each **context** inside a secret points at a cluster.
+
+1. Paste / import kubeconfig under Kubernetes Settings
+2. Pick active secret + context (or use MCP `configuration_set_active`)
+3. Browse and mutate resources against that target
+
+When multiple secrets or clusters exist, agents must ask which pair to use before mutating.
+
+## MCP
+
+Native client-go style tools (`pods_*`, `resources_*`, `helm_*`, …) — prefer them over raw `kubectl` via bash. See [MCP tools](../reference/mcp-tools.mdx).
+
+## vs running Container Workspace on K8s
+
+This page is the **in-app** Kubernetes manager. To **deploy** Container Workspace itself as a pod, see [Install → Kubernetes](../install/kubernetes.mdx).

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import useAuthorizationStore from "@/store/authorization"
 
-const SUPPORT_EMAIL = "support@uet.edu.al"
+const SUPPORT_EMAIL = "imolla3@icloud.com"
 
 const Unauthorized401: FC = () => {
   const clearAccessDenied = useAuthorizationStore((s) => s.clearAccessDenied)

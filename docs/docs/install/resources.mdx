@@ -1,0 +1,31 @@
+---
+sidebar_position: 8
+---
+
+# Resource allocation
+
+## Docker / Compose
+
+| Setting | Guidance |
+|---------|----------|
+| `shm_size` / `--shm-size` | **2gb** recommended for browsers / desktop apps |
+| `gpus` | Omit if no NVIDIA toolkit |
+| CPU / memory | Not capped in examples — size the VM/host for nested Docker + builds |
+| `/config` | Always persist (SQLite, SSL, VNC, machine id) |
+| `/var/lib/docker` | Named volume for nested Engine data |
+
+## Privileges
+
+Nested Docker and desktop stacks need privileged / unconfined sandboxes. Plan capacity as a **single-tenant developer workstation**, not a dense multi-tenant pod farm.
+
+## Kubernetes
+
+The sample Deployment is **BestEffort** (no requests/limits). For production-like clusters:
+
+- Still require privileged (or equivalent) for nested Docker
+- Add requests/limits only if you accept that desktop/nested Docker may need high headroom
+- Prefer node-local HostPath or high-IOPS PVCs for `/config` and Docker data
+
+## GPU
+
+Pass through with NVIDIA Container Toolkit (`gpus: all`, `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES`). Softwares catalog includes GPU monitoring helpers (e.g. `nvtop`) depending on distro.

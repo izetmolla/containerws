@@ -1,0 +1,31 @@
+---
+sidebar_position: 5
+---
+
+# Windows
+
+Native `install.sh` **does not** support Windows hosts. Use **Docker Desktop** (WSL2 backend recommended).
+
+## Compose
+
+Use [`docker-compose-windows.yaml`](https://github.com/izetmolla/containerws/blob/main/docker-compose-windows.yaml):
+
+- Pulls `izetmolla/containerws:ubuntu-26.04`
+- Uses **named volumes** for config / workspace / Docker data (avoid fragile `C:\` bind mounts and inotify issues)
+- Same isolation posture as Linux: `privileged`, `cgroup: private`, unconfined seccomp/apparmor where applicable
+
+```bash
+docker compose -f docker-compose-windows.yaml up -d
+```
+
+Adapt host paths / networks before production use. Set a strong `ROOT_PWD`.
+
+## Access
+
+- UI: http://localhost:9000
+- SSH: map container `22` to a host port (e.g. `2222`)
+
+## Notes
+
+- Prefer WSL2 engine over Hyper-V-only paths when possible
+- Follow the same [WSL cgroup rules](./linux-wsl.mdx) if systemd fails inside the container

@@ -1,0 +1,52 @@
+---
+sidebar_position: 4
+---
+
+# Troubleshooting
+
+## UI not reachable on :9000
+
+```bash
+# Native
+systemctl status containerws
+journalctl -u containerws -f
+# or direct mode:
+/usr/local/lib/containerws/bin/cws-daemon.sh status
+tail -f /var/log/containerws/cws.err.log
+
+# Docker
+docker logs -f containerws
+docker exec -it containerws ss -lntp | head
+```
+
+Ensure you published `-p 9000:9000` or attached the correct network IP.
+
+## systemd fails inside Docker / WSL
+
+Symptoms: cgroup errors (`ef53`), hang on boot.
+
+- Use `cgroup: private` / `--cgroupns=private`
+- Do **not** bind-mount host `/sys/fs/cgroup`
+- Set `CONTAINERWS_INIT=direct`
+
+See [Linux / WSL](../install/linux-wsl.mdx).
+
+## Homebrew binary but no daemon
+
+```bash
+sudo containerws setup
+```
+
+## Softwares / Brew job stuck
+
+Open **Softwares → Installing**. Dismiss failed items if needed. Only one queue worker runs at a time (Softwares, Brew, and VNC setup share the queue).
+
+## MCP unauthorized
+
+- Use a key from Settings → MCP, or `MCP_TOKEN`
+- From the same host, try loopback without a key
+- Confirm URL is `http://host:9000/mcp` or `http://host:$MCP_PORT/`
+
+## Nested Docker issues
+
+Confirm `/var/lib/docker` volume exists, Softwares Docker Engine is installed/started, and the container is privileged.

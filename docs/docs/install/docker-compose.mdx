@@ -1,0 +1,75 @@
+---
+sidebar_position: 4
+---
+
+# Docker Compose
+
+## Dev build (repo)
+
+```bash
+git clone https://github.com/izetmolla/containerws.git
+cd containerws
+mkdir -p tmp/config
+
+# Optional network if your compose file expects VLAN26
+docker network create --subnet=10.10.26.0/24 VLAN26 2>/dev/null || true
+
+# Edit docker-compose.yaml: ROOT_PWD, networks/ports
+docker compose -f docker-compose.yaml up -d --build
+```
+
+## Published image example
+
+```yaml
+services:
+  containerws:
+    image: izetmolla/containerws:ubuntu-26.04
+    container_name: containerws
+    hostname: containerws
+    restart: unless-stopped
+    tty: true
+    stop_signal: SIGRTMIN+3
+    privileged: true
+    cgroup: private
+    gpus: all          # remove if no GPU toolkit
+    shm_size: "2gb"
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+    cap_drop:
+      - SYS_MODULE
+    tmpfs:
+      - /run:exec,mode=755
+      - /run/lock:mode=755
+      - /tmp:exec,mode=1777
+    environment:
+      ENV: production
+      container: docker
+      CONTAINERWS_INIT: auto
+      ROOT_PWD: "CHANGE_ME"
+      ROOT_SSH_PUBLIC_KEY: ""
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+    volumes:
+      - ./tmp/config:/config
+      - containerws-docker-data:/var/lib/docker
+    ports:
+      - "9000:9000"
+      - "2222:22"
+volumes:
+  containerws-docker-data:
+```
+
+```bash
+docker compose -f docker-compose.local.yaml up -d
+```
+
+## Compose files in the repo
+
+| File | Audience | Notes |
+|------|----------|--------|
+| `docker-compose.yaml` | Linux / WSL **dev** | Builds `docker/ubuntu/26.04`, mounts `./tmp/config` |
+| `docker-compose-windows.yaml` | Windows Docker Desktop | Named volumes; see [Windows](./windows.mdx) |
+| `docker-compose-example.yaml` | Legacy | `cgroup: host` — **avoid on WSL** |
+
+Data survives recreate as long as `/config` and the nested Docker volume are kept.

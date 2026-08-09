@@ -1,0 +1,61 @@
+---
+sidebar_position: 3
+---
+
+# Docker CLI
+
+Pull and run Ubuntu 26.04 (recommended):
+
+```bash
+docker pull izetmolla/containerws:ubuntu-26.04
+
+docker volume create containerws-docker-data
+mkdir -p "$(pwd)/tmp/config"
+
+docker run -d \
+  --name containerws \
+  --hostname containerws \
+  --restart unless-stopped \
+  --privileged \
+  --cgroupns=private \
+  --gpus all \
+  --shm-size 2g \
+  --security-opt apparmor=unconfined \
+  --security-opt seccomp=unconfined \
+  --cap-drop SYS_MODULE \
+  --tmpfs /run:exec,mode=755 \
+  --tmpfs /run/lock:mode=755 \
+  --tmpfs /tmp:exec,mode=1777 \
+  -e ENV=production \
+  -e container=docker \
+  -e CONTAINERWS_INIT=auto \
+  -e ROOT_PWD='CHANGE_ME' \
+  -e ROOT_SSH_PUBLIC_KEY='' \
+  -v "$(pwd)/tmp/config:/config" \
+  -v containerws-docker-data:/var/lib/docker \
+  -p 9000:9000 \
+  -p 2222:22 \
+  -t \
+  --stop-signal SIGRTMIN+3 \
+  izetmolla/containerws:ubuntu-26.04
+```
+
+Without GPU, omit `--gpus all` and NVIDIA env vars.
+
+Other distros — change only the image tag (see [Image tags](../reference/images-tags.mdx)):
+
+```bash
+docker pull izetmolla/containerws:debian-13
+docker pull izetmolla/containerws:fedora-44
+```
+
+## Useful commands
+
+```bash
+docker logs -f containerws
+docker exec -it containerws bash
+docker stop containerws && docker start containerws
+docker rm -f containerws   # keeps volumes/config if you remount them
+```
+
+See [Linux / WSL](./linux-wsl.mdx) for cgroup notes and [Resources](./resources.mdx) for sizing.

@@ -1,0 +1,24 @@
+---
+sidebar_position: 11
+---
+
+# VS Code Server
+
+Two related pieces:
+
+| Piece | Role |
+|-------|------|
+| Softwares **VS Code Server** | Installs Microsoft `code serve-web` tooling |
+| Panel **VS Code** module + `cws cs` | Lists sessions; starts serve-web on a free port |
+
+## CLI
+
+```bash
+cws cs start /workspace
+cws cs status
+cws cs stop
+```
+
+Flags: `--path`, `--host` (default `127.0.0.1`), `--token` (`none` \| `auto` \| secret), `--restart`.
+
+Sessions are stored in the DB and proxied at `/codeserver/:uuid` on the main UI port.

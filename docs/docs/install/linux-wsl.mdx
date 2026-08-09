@@ -1,0 +1,31 @@
+---
+sidebar_position: 6
+---
+
+# Linux / WSL
+
+## Recommended
+
+- Docker Engine on Linux, or Docker Desktop with **WSL2**
+- Compose files with `cgroup: private` and **no** `/sys/fs/cgroup` host bind
+
+## Init modes
+
+| `CONTAINERWS_INIT` | Behavior |
+|--------------------|----------|
+| `auto` (default) | Prefer systemd; fall back to direct |
+| `systemd` | Force systemd PID 1 path |
+| `direct` | Skip systemd; run `cws` + `sshd` as supervised children |
+
+Set `direct` when WSL/Docker cgroups prevent a healthy systemd:
+
+```yaml
+environment:
+  CONTAINERWS_INIT: direct
+```
+
+## Dev compose
+
+Repo `docker-compose.yaml` builds from `docker/ubuntu/26.04/Dockerfile`, mounts `./tmp/config`, and may attach an external network (`VLAN26`). Edit IPs/ports to match your LAN.
+
+See [Docker Compose](./docker-compose.mdx) and [Requirements](../getting-started/requirements.mdx).

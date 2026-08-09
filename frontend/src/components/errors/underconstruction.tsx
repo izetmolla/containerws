@@ -4,7 +4,7 @@ import { Link } from "react-router"
 import { Button } from "@/components/ui/button" 
 import { cn } from "@/lib/utils"
 
-const CONTACT_EMAIL = "izet.molla@uet.edu.al"
+const CONTACT_EMAIL = "imolla3@icloud.com"
 
 const UnderConstruction: FC = () => {
   return (

@@ -1,0 +1,31 @@
+---
+sidebar_position: 5
+---
+
+# VNC / RDP / noVNC
+
+Desktop access is provided by the **vncnovnc** module (XFCE + TigerVNC + noVNC), not by Softwares seed packages.
+
+**UI:** VNC settings / logs; per-user VNC and noVNC tabs under Users. Browser access often via **`/novnc`** on port 9000 (JWT/cookie auth).
+
+## Components
+
+| Piece | Role |
+|-------|------|
+| TigerVNC | RFB server (ports ~5901–5999) |
+| websockify / noVNC | Browser client (~6080–6179 or proxied) |
+| XFCE | Desktop environment |
+| xrdp (optional) | RDP on **3389** after optional RDP setup job |
+
+## CLI
+
+```bash
+cws vnc password --generate --restart
+cws vnc show
+```
+
+## Install / setup
+
+Use the panel VNC setup flows (and optional RDP package setup). Jobs wait on the Softwares install queue when needed so they do not race other installs.
+
+Session files: `CWS_VNC_SESSION_DIR` (default `/config/containerws/vnc-sessions`).

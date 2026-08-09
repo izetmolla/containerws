@@ -1,0 +1,24 @@
+---
+sidebar_position: 1
+---
+
+# Overview
+
+Container Workspace is controlled primarily through the **web UI** at `http://HOST:9000`. The same process serves the REST API and (when enabled) MCP at `/mcp`.
+
+## Typical first hour
+
+1. Pick an [install path](../install/native-binary.mdx) (Compose is the fastest for trying Docker images).
+2. Open the UI and complete [first login](./first-login.mdx).
+3. Enable modules you need under **Settings → Options** (Docker, Kubernetes, Brew, Proxy Manager default off on fresh installs).
+4. Install **Docker Engine** (and optionally desktop stack) from **Softwares** if you are on a container image that does not already include what you need.
+5. Connect an MCP client to `/mcp` or a standalone `MCP_PORT` — see [MCP](../features/mcp.mdx).
+
+## Architecture at a glance
+
+- **Binary name:** `containerws` (also linked as `cws`)
+- **Config root (production):** `/config/containerws` (database, SSL, VNC sessions)
+- **Persistence in Docker:** bind or volume mount **`/config`**; nested Docker data under `/var/lib/docker`
+- **SSH:** port **22** inside images (often published as host `2222`)
+
+Next: [Requirements](./requirements.mdx).

@@ -1,0 +1,33 @@
+---
+sidebar_position: 3
+---
+
+# Brew Manager
+
+**UI:** `/brew`, Installed, formula/cask detail.
+
+Requires the **Brew** module enabled (Settings → Options). Homebrew itself can be bootstrapped from the panel.
+
+![Brew Manager](/img/screenshots/brew.png)
+
+Popular formulae on Discover use [Homebrew analytics](./analytics.mdx) (30-day install counts).
+
+## Capabilities
+
+- Search formulae / casks
+- Install / upgrade / uninstall (queued into Softwares Installing)
+- Bulk upgrade / uninstall on Installed
+- **Check for updates** (`brew update` + queue upgrades)
+- Switch package manager ownership between Softwares (local) and Brew
+
+## MCP
+
+`brew_status`, `brew_search`, `brew_installed`, `brew_install`, `brew_check_updates`.
+
+## PATH
+
+After panel bootstrap, Linuxbrew bins are prepended for Cloud Shell / MCP bash (`/home/linuxbrew/.linuxbrew`). Profile drop-ins may be written for login shells.
+
+## Installing containerws via Brew
+
+See [Homebrew install](../install/homebrew.mdx) and [Setup](../configuration/setup-command.mdx) — that is the **host** package for the panel binary, separate from Brew Manager inside the workspace.

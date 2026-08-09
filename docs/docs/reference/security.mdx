@@ -1,0 +1,32 @@
+---
+sidebar_position: 3
+---
+
+# Security
+
+Container Workspace runtimes are designed as a **trusted personal / team developer workspace**, not a locked-down multi-tenant SaaS.
+
+## Trusted capabilities
+
+Docker/K8s examples commonly enable:
+
+- Privileged containers
+- Unconfined seccomp / AppArmor
+- Nested Docker
+- Optional GPU passthrough
+- SSH as root with password or key from env
+
+## Recommendations
+
+- Do not expose port 9000 / 22 to the public Internet without TLS, strong credentials, and network policy
+- Prefer SSH keys over weak `ROOT_PWD`
+- Rotate MCP API keys; do not commit tokens
+- Keep `/config` backups private (SQLite may hold secrets, kubeconfigs, certs)
+- Enable only the modules you need (Docker / K8s / Brew / Proxy)
+
+## Auth surfaces
+
+- Panel users (JWT sessions)
+- MCP keys / `MCP_TOKEN` (loopback may skip key)
+- noVNC dual auth (JWT/cookie)
+- Proxy Manager applies host-level routing — treat apply as privileged

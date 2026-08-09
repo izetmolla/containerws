@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 # release.sh — verify builds, bump or set version, update CHANGELOG, create annotated tag, push.
 #
-# Pushing a v* tag triggers .github/workflows/release.yml which builds and
-# publishes a GitHub Release with GoReleaser (binaries only — no Docker images).
-#
-# You can also release from the Actions UI: Actions → Release → Run workflow
-# (bump-and-publish / tag-and-publish / publish-tag / snapshot).
+# This only creates/pushes the git tag — it does not publish binaries.
+# To build + publish a GitHub Release and update the Homebrew tap, use:
+#   ./scripts/release-local.sh patch
 #
 # Usage:
 #   ./scripts/release.sh [major|minor|patch]
 #   ./scripts/release.sh v1.2.3          # exact version (no semver bump)
 #   ./scripts/release.sh patch --no-push   # tag locally only
 #   ./scripts/release.sh minor --yes       # skip confirmation
-#   ./scripts/release.sh patch --skip-build  # skip preflight (CI already built)
+#   ./scripts/release.sh patch --skip-build  # skip preflight (already built)
 #
 # Prerequisites: clean git working tree, push access to origin.
 set -euo pipefail
@@ -195,11 +193,8 @@ if [[ "$PUSH" -eq 1 ]]; then
   git push origin "$BRANCH"
   git push origin "$NEXT"
   echo
-  echo "GitHub Actions will build binaries and publish the release."
-  REMOTE_URL="$(git remote get-url origin 2>/dev/null || true)"
-  if [[ "$REMOTE_URL" =~ github.com[:/]([^/]+)/([^/.]+) ]]; then
-    echo "Track: https://github.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/actions"
-  fi
+  echo "Tagged ${NEXT}. To publish binaries + Homebrew tap, run:"
+  echo "  ./scripts/release-local.sh --existing-tag ${NEXT}"
 else
   echo "Skipped push (--no-push). When ready:"
   echo "  git push origin HEAD && git push origin ${NEXT}"
