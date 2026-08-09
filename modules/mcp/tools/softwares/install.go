@@ -87,6 +87,18 @@ func (c *Controller) InstallTool(ctx context.Context, _ *mcp.CallToolRequest, in
 		return &mcp.CallToolResult{IsError: true}, out, nil
 	}
 
+	if pm := models.GetSoftwarePackageManager(db, sw.ID); pm == models.PackageManagerBrew {
+		out := InstallOutput{
+			Listed:  true,
+			Success: false,
+			ID:      sw.ID,
+			Name:    sw.Name,
+			Version: ver.Version,
+			Message: fmt.Sprintf("%s is owned by Homebrew — use brew_install / brew_check_updates, or switch package manager in Softwares UI", sw.Name),
+		}
+		return &mcp.CallToolResult{IsError: true}, out, nil
+	}
+
 	if input.DryRun {
 		return &mcp.CallToolResult{}, InstallOutput{
 			Listed:        true,

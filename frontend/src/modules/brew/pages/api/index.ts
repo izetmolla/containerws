@@ -182,6 +182,23 @@ export async function runBrewAction(
   })
 }
 
+/** Run `brew update`, list outdated packages, and queue upgrades (default). */
+export async function checkBrewUpdates(opts?: { upgrade?: boolean }) {
+  return ApiService.fetchData<{
+    data: {
+      update_log?: string
+      update_ok?: boolean
+      outdated: Array<{ name: string; kind: string }>
+      queued: number
+    }
+    message?: string
+  }>({
+    url: `${BREW_BASE}/check-updates`,
+    method: "post",
+    data: { upgrade: opts?.upgrade ?? true },
+  })
+}
+
 export async function getBrewJob(id: string) {
   return ApiService.fetchData<{ data: BrewJob }>({
     url: `${BREW_BASE}/jobs/${encodeURIComponent(id)}`,

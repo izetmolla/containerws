@@ -11,6 +11,10 @@
 #   sudo bash install.sh --binary ./containerws
 #   sudo bash install.sh --uninstall
 #
+# After a Homebrew install of the binary only, prefer:
+#   sudo containerws setup
+# (same dirs / cws link / daemon as this script's post-binary steps).
+#
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "error: this installer requires bash." >&2
   exit 1

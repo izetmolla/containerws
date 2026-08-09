@@ -11,6 +11,7 @@ import {
   Package,
   RefreshCw,
   RotateCcw,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils"
 
 import { SoftwareGlyph } from "../../components/software-glyph"
 import {
+  dismissSoftwareQueueItem,
   getSoftwareQueue,
   retrySoftwareQueueItem,
   SOFTWARES_FETCH_KEY,
@@ -44,28 +46,49 @@ function actionLabel(action: string) {
 function InstallingActionCell({
   item,
   onRetry,
+  onDismiss,
   retrying,
+  dismissing,
 }: {
   item: SoftwareQueueItem
   onRetry: (item: SoftwareQueueItem) => void
+  onDismiss: (item: SoftwareQueueItem) => void
   retrying: boolean
+  dismissing: boolean
 }) {
   if (item.status === "error") {
+    const busy = retrying || dismissing
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        className="min-w-[7.5rem] border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-        disabled={retrying}
-        onClick={() => onRetry(item)}
-      >
-        {retrying ? (
-          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-        )}
-        Retry
-      </Button>
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-w-[6.5rem] border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          disabled={busy}
+          onClick={() => onRetry(item)}
+        >
+          {retrying ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          Retry
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="min-w-[6.5rem] text-muted-foreground hover:text-foreground"
+          disabled={busy}
+          onClick={() => onDismiss(item)}
+        >
+          {dismissing ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <X className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          Remove
+        </Button>
+      </div>
     )
   }
 
@@ -128,6 +151,23 @@ export default function SoftwaresInstallingPage() {
     },
     onError: (err) => {
       toast.error(getRequestErrorMessage(err, "Retry failed"))
+    },
+  })
+
+  const dismissMutation = useMutation({
+    mutationFn: (item: SoftwareQueueItem) =>
+      dismissSoftwareQueueItem({
+        id: item.id,
+        softwareId: item.software_id || item.brew_name || "",
+      }),
+    onSuccess: (res) => {
+      toast.success(res.message || "Removed from queue")
+      void queryClient.invalidateQueries({
+        queryKey: [SOFTWARES_FETCH_KEY, "queue"],
+      })
+    },
+    onError: (err) => {
+      toast.error(getRequestErrorMessage(err, "Remove failed"))
     },
   })
 
@@ -231,16 +271,21 @@ export default function SoftwaresInstallingPage() {
             <InstallingActionCell
               item={row.original}
               onRetry={(item) => retryMutation.mutate(item)}
+              onDismiss={(item) => dismissMutation.mutate(item)}
               retrying={
                 retryMutation.isPending &&
                 retryMutation.variables?.id === row.original.id
+              }
+              dismissing={
+                dismissMutation.isPending &&
+                dismissMutation.variables?.id === row.original.id
               }
             />
           </div>
         ),
       }),
     ] as ColumnDef<SoftwareQueueItem, unknown>[]
-  }, [retryMutation])
+  }, [retryMutation, dismissMutation])
 
   return (
     <ContentLoader

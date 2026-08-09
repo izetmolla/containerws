@@ -20,6 +20,7 @@ func SetupRoutesAPI(api fiber.Router, appClients *config.AppClients) {
 	api.Post("/queue", cc.EnqueueAPI)
 	api.Get("/queue", cc.GetQueueAPI)
 	api.Post("/queue/retry", cc.RetryQueueAPI)
+	api.Post("/queue/dismiss", cc.DismissQueueAPI)
 	api.Post("/jobs/:jobId/cancel", cc.CancelInstallAPI)
 	api.Get("/jobs/:jobId/stream", cc.StreamJobAPI)
 	api.Get("/:id/job", cc.GetLatestJobAPI)

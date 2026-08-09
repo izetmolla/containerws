@@ -66,6 +66,8 @@ func (c *Controller) BashTool(ctx context.Context, _ *mcp.CallToolRequest, input
 
 	cmd := exec.CommandContext(runCtx, "/bin/bash", "-lc", command)
 	cmd.Dir = cwd
+	// Ensure Linuxbrew is on PATH for login shells after panel bootstrap.
+	_ = os.Setenv("PATH", withBrewPATH(os.Getenv("PATH")))
 	cmd.Env = os.Environ()
 	for k, v := range input.Env {
 		if strings.TrimSpace(k) == "" {
@@ -124,4 +126,36 @@ func truncateBytes(b []byte, limit int) (string, bool) {
 	}
 	msg := fmt.Sprintf("\n...[truncated %d of %d bytes]", limit, len(b))
 	return string(b[:limit]) + msg, true
+}
+
+func withBrewPATH(path string) string {
+	extras := []string{
+		"/home/linuxbrew/.linuxbrew/bin",
+		"/home/linuxbrew/.linuxbrew/sbin",
+	}
+	parts := make([]string, 0, 8)
+	seen := map[string]struct{}{}
+	for _, d := range extras {
+		if st, err := os.Stat(d); err == nil && st.IsDir() {
+			if _, ok := seen[d]; !ok {
+				seen[d] = struct{}{}
+				parts = append(parts, d)
+			}
+		}
+	}
+	for _, p := range strings.Split(path, string(os.PathListSeparator)) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		parts = append(parts, p)
+	}
+	if len(parts) == 0 {
+		return path
+	}
+	return strings.Join(parts, string(os.PathListSeparator))
 }

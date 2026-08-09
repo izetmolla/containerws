@@ -94,7 +94,14 @@ Linux login accounts missing from the DB are inserted; panel users with a
 username missing on Linux get a full account (home + bash). Default: enabled
 when ENV=production.
 
-Subcommands (users, software, vnc, version, …) work without --start.
+After a Homebrew (or manual binary) install, run:
+
+  sudo containerws setup
+
+to create the cws symlink, host dirs, and a background daemon that runs
+cws --start.
+
+Subcommands (setup, users, software, vnc, version, …) work without --start.
 
 Flags are also available as environment variables prefixed by "CW_"
 (UPPER_SNAKE_CASE), except "--config".

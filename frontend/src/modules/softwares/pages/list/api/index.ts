@@ -357,3 +357,21 @@ export async function retrySoftwareQueueItem(opts: {
     },
   })
 }
+
+/** Remove a failed queue item (or standalone failed job) from Installing. */
+export async function dismissSoftwareQueueItem(opts: {
+  id?: string
+  softwareId?: string
+}) {
+  return ApiService.fetchData<{
+    data: { removed: number; queue: SoftwareQueueSnapshot }
+    message?: string
+  }>({
+    url: `${SOFTWARES_INSTALL_BASE}/queue/dismiss`,
+    method: "post",
+    data: {
+      ...(opts.id ? { id: opts.id } : {}),
+      ...(opts.softwareId ? { software_id: opts.softwareId } : {}),
+    },
+  })
+}

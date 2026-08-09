@@ -56,6 +56,7 @@ func truncateLog(s string, max int) string {
 // and no install is already running.
 func MaybeStart(_ any) {
 	if ResolveBrewPath() != "" {
+		EnsureBrewShellPath()
 		return
 	}
 	StartBootstrap()
@@ -75,6 +76,7 @@ func StartBootstrap() bool {
 		bootstrap.error = ""
 		bootstrap.log = "brew already installed"
 		bootstrap.mu.Unlock()
+		EnsureBrewShellPath()
 		return false
 	}
 	bootstrap.running = true
@@ -102,6 +104,10 @@ func runBootstrap() {
 			bootstrap.success = false
 		}
 		bootstrap.mu.Unlock()
+		if ResolveBrewPath() != "" {
+			EnsureBrewShellPath()
+			AppendBootstrapNote("shellenv: brew added to PATH / profile.d")
+		}
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)

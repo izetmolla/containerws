@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -337,6 +338,15 @@ func buildShellEnv(cliUser *cliUserContext, home string) []string {
 	if path == "" {
 		path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	}
+	// Prefer Linuxbrew when present (panel bootstrap may install it off PATH).
+	for _, extra := range []string{
+		"/home/linuxbrew/.linuxbrew/bin",
+		"/home/linuxbrew/.linuxbrew/sbin",
+	} {
+		if st, err := os.Stat(extra); err == nil && st.IsDir() && !strings.Contains(path, extra) {
+			path = extra + string(os.PathListSeparator) + path
+		}
+	}
 	env := []string{
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
@@ -349,7 +359,7 @@ func buildShellEnv(cliUser *cliUserContext, home string) []string {
 		"LC_ALL=C.UTF-8",
 		fmt.Sprintf("PS1=\\[\\e[32m\\]%s@containerws\\[\\e[0m\\]:\\[\\e[34m\\]\\w\\[\\e[0m\\]\\$ ", cliUser.ShellUser),
 	}
-	for _, key := range []string{"GOROOT", "GOPATH", "GOCACHE", "GOMODCACHE", "NVM_DIR"} {
+	for _, key := range []string{"GOROOT", "GOPATH", "GOCACHE", "GOMODCACHE", "NVM_DIR", "HOMEBREW_PREFIX", "HOMEBREW_CELLAR", "HOMEBREW_REPOSITORY"} {
 		if v := os.Getenv(key); v != "" {
 			env = append(env, key+"="+v)
 		}

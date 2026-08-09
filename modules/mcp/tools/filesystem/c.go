@@ -66,4 +66,15 @@ func LoadTools(server *mcp.Server, app *config.AppClients) {
 		Description: "Search for files by name glob and/or content regex under a root path. " +
 			"Use for locating code/config before editing.",
 	}, controller.SearchFilesTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "zip_paths",
+		Description: "Create a .zip archive from one or more files/directories (same behavior as File Manager Zip). " +
+			"Optional destination; defaults next to the first path.",
+	}, controller.ZipPathsTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "unzip_path",
+		Description: "Extract a .zip archive to a destination directory (defaults to a sibling folder named after the zip).",
+	}, controller.UnzipPathTool)
 }

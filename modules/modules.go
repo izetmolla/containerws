@@ -63,6 +63,8 @@ func SetupRoutes(app *fiber.App, appClients *config.AppClients) {
 
 	softwares.SetupRoutesAPI(api, appClients)
 	brew.SetupRoutesAPI(api, appClients)
+	// Ensure existing Homebrew installs are on PATH for shells / MCP bash.
+	brew.EnsureBrewShellPath()
 
 	// Serialize Brew installs with Softwares / VNC package jobs on one queue.
 	swinstall.SetBrewActionRunner(func(action, kind string, names []string) (jobID, message string, err error) {

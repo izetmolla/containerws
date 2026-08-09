@@ -113,9 +113,28 @@ homebrew_casks:
     description: "Container Workspace — Linux workspace with web UI, Softwares catalog, and Cloud Shell"
     skip_upload: '{{ if eq .Env.HOMEBREW_TAP_TOKEN "" }}true{{ else }}auto{{ end }}'
     commit_msg_template: "Brew cask update for containerws {{ .Tag }}"
+    caveats: |
+      After install, create the `cws` CLI link and start the background daemon:
+
+        sudo containerws setup
+
+      This installs host dirs, links `cws`, and runs `cws --start` via systemd/launchd/direct.
+      Web UI: http://127.0.0.1:9000
     hooks:
       post:
         install: |
           if OS.mac? && system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/containerws"]
+          end
+          bin = "#{staged_path}/containerws"
+          setup_ok = false
+          if File.executable?(bin) && File.exist?("/usr/bin/sudo")
+            # Passwordless sudo only — otherwise print the manual step.
+            result = system_command "/usr/bin/sudo", args: ["-n", bin, "setup"], print_stderr: false, must_succeed: false
+            setup_ok = result.success?
+          end
+          if setup_ok
+            ohai "Container Workspace daemon installed (cws --start). UI: http://127.0.0.1:9000"
+          else
+            ohai "Next step: run 'sudo containerws setup' to create the cws link and start the daemon"
           end

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/izetmolla/containerws/models"
+	hostbrew "github.com/izetmolla/containerws/modules/brew"
 	"github.com/izetmolla/containerws/modules/softwares/service"
 	"github.com/izetmolla/containerws/packages/softwaresync"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -33,6 +34,8 @@ type LookupOutput struct {
 	OnHostDetail     string          `json:"on_host_detail,omitempty"`
 	HasInstallScript bool            `json:"has_install_script,omitempty"`
 	HasCustomScript  bool            `json:"has_custom_script,omitempty"`
+	PackageManager   string          `json:"package_manager,omitempty"`
+	BrewAvailable    bool            `json:"brew_available,omitempty"`
 	ServiceUnits     []string        `json:"service_units,omitempty"`
 	ServiceOverall   string          `json:"service_overall,omitempty"`
 	ServiceStatus    *service.Status `json:"service_status,omitempty"`
@@ -90,6 +93,7 @@ func (c *Controller) LookupTool(ctx context.Context, _ *mcp.CallToolRequest, inp
 	}
 	if installRow != nil {
 		out.IsInstalled = true
+		out.PackageManager = models.NormalizePackageManager(installRow.PackageManager)
 		var ver models.SoftwareVersion
 		if err := db.WithContext(ctx).Where("id = ?", installRow.VersionID).First(&ver).Error; err == nil {
 			out.InstalledVersion = ver.Version
@@ -97,11 +101,24 @@ func (c *Controller) LookupTool(ctx context.Context, _ *mcp.CallToolRequest, inp
 		if latest != nil {
 			out.HasUpdate = models.HasSoftwareUpdate(installRow.VersionID, latest.ID)
 		}
+	} else {
+		out.PackageManager = models.GetSoftwarePackageManager(db, sw.ID)
 	}
+
+	// Exact Homebrew token match (registry slug or lowercase name).
+	token := strings.ToLower(strings.TrimSpace(sw.RegistrySlug))
+	if token == "" {
+		token = strings.ToLower(strings.TrimSpace(sw.Name))
+	}
+	out.BrewAvailable = hostbrew.FormulaExists(token) || hostbrew.CaskExists(token)
 
 	probe := softwaresync.ProbeInstalled(sw.Name, []string(sw.ServiceUnits))
 	out.OnHost = probe.Present
 	out.OnHostDetail = probe.Detail
+
+	if out.PackageManager == models.PackageManagerBrew {
+		out.Message = fmt.Sprintf("%q is listed and owned by Homebrew — use brew_* tools or Softwares switch for local scripts", sw.Name)
+	}
 
 	if len(sw.ServiceUnits) > 0 {
 		st := service.ProbeUnits([]string(sw.ServiceUnits))

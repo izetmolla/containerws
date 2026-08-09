@@ -265,7 +265,7 @@ jobs:
             if [[ -n "${TAG}" && "${{ steps.meta.outputs.do_publish }}" == "true" ]]; then
               echo "- **Release:** https://github.com/${{ github.repository }}/releases/tag/${TAG}"
               if [[ "${HAS_BREW_TOKEN}" == "true" ]]; then
-                echo "- **Homebrew:** \`brew install izetmolla/tap/containerws\` (tap updated if not a prerelease)"
+                echo "- **Homebrew:** \`brew install --cask izetmolla/tap/containerws\` then \`sudo containerws setup\`"
               else
                 echo "- **Homebrew:** skipped (set repo secret \`HOMEBREW_TAP_TOKEN\` + create \`izetmolla/homebrew-tap\`)"
               fi

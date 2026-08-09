@@ -2,6 +2,7 @@ package install
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 )
@@ -341,5 +342,30 @@ func cancelJob(id string) bool {
 	if cancel != nil {
 		cancel()
 	}
+	return true
+}
+
+// dismissJob hides a finished/failed job from the Installing queue.
+func dismissJob(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
+	if strings.HasPrefix(id, "job-") {
+		id = strings.TrimPrefix(id, "job-")
+	}
+	jobs.mu.Lock()
+	j, ok := jobs.byID[id]
+	jobs.mu.Unlock()
+	if !ok || j == nil {
+		return false
+	}
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.status == "running" {
+		return false
+	}
+	j.status = "dismissed"
+	j.message = "Dismissed"
 	return true
 }

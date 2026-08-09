@@ -19,16 +19,18 @@ func NewController(appClients *config.AppClients) *controller {
 	return &controller{app: appClients}
 }
 
-const mcpServerInstructions = `Container Workspace MCP — bash, filesystem, Chromium browser, Softwares catalog, software packages, and Kubernetes.
+const mcpServerInstructions = `Container Workspace MCP — bash, filesystem, Chromium browser, Softwares catalog, Homebrew, software packages, Kubernetes, and Docker.
 
 ## Always-read resources (use resources/read)
 - cws://docs/overview — master rules for correct results
-- cws://docs/bash — shell / installs
-- cws://docs/filesystem — file CRUD + search
+- cws://docs/bash — shell / installs (Homebrew on PATH after panel bootstrap)
+- cws://docs/filesystem — file CRUD + search + zip/unzip
 - cws://docs/browser — open Chromium and automate UI
-- cws://docs/softwares — Softwares catalog (list / lookup / install / service)
+- cws://docs/softwares — Softwares catalog + install queue
+- cws://docs/brew — Homebrew search / install / updates (queues into Softwares)
 - cws://docs/softwarepkg — search / create / scaffold GitHub packages by distro
 - cws://docs/kubernetes — Kubernetes MCP (kubeconfig secrets ↔ clusters, pods, resources, helm)
+- cws://docs/docker — Docker Engine (containers/images/volumes/networks) + docker mcp gateway helpers
 - cws://docs/auth — API key / token auth
 
 ## Prompts
@@ -39,7 +41,14 @@ const mcpServerInstructions = `Container Workspace MCP — bash, filesystem, Chr
 
 ## Softwares (catalog — check listed first)
 - softwares_list → softwares_lookup(name) → if listed=true then softwares_install / softwares_service.
-- If listed=false, do not invent catalog installs; use bash for ad-hoc packages, or softwarepkg_create to add a package.
+- If package_manager=brew, use brew_* tools (do not softwares_install).
+- softwares_queue / softwares_queue_dismiss for Installing failures.
+- If listed=false, do not invent catalog installs; use bash for ad-hoc packages, brew_search/brew_install, or softwarepkg_create.
+
+## Homebrew
+- brew_status → brew_search / brew_installed → brew_install (queues Softwares install jobs).
+- brew_check_updates runs brew update and queues upgrades.
+- Softwares-owned (local) tokens are blocked until switched in the UI.
 
 ## Software packages (authoring)
 - softwarepkg_search → if missing, softwarepkg_publish (clone registry → scaffold → push).
@@ -53,12 +62,19 @@ const mcpServerInstructions = `Container Workspace MCP — bash, filesystem, Chr
 - Pass kubeconfig_id + context on tools, or configuration_set_active to set the workspace default.
 - Prefer k8s tools over raw kubectl via bash. helm_* needs helm CLI on PATH.
 
+## Docker
+- docker_engine_status / docker_environments_list first; pass environment_id when not using the default.
+- Prefer docker_containers_* / docker_images_* / docker_volumes_* / docker_networks_* over raw docker via bash.
+- docker_mcp_gateway_status / docker_mcp_tools_list probe the optional docker mcp CLI plugin (MCP Gateway) — they do not start the gateway.
+
 ## Bash
-- Use bash for installs, updates, package managers (apt/dnf), services, builds.
+- Use bash for installs, updates, package managers (apt/dnf/brew), services, builds.
 - Prefer cwd; set timeout_seconds for long jobs. Non-zero exit_code is recoverable.
+- Linuxbrew bin is prepended to PATH when present (/home/linuxbrew/.linuxbrew).
 
 ## Filesystem
 - Prefer read_file / write_file / edit_file / list_directory / delete_path / move_path / copy_path / make_directory / stat_path / search_files.
+- zip_paths / unzip_path for archives (File Manager parity).
 - Recursive deletes require recursive=true.
 
 ## Browser (Chromium/Chrome)
@@ -72,11 +88,11 @@ const mcpServerInstructions = `Container Workspace MCP — bash, filesystem, Chr
 
 ## Safety
 - Confirm destructive paths. Prefer edit_file over rewriting large files. Cap large reads.
-- Confirm destructive Kubernetes deletes/scales with the user when intent is unclear.`
+- Confirm destructive Kubernetes deletes/scales and Docker remove/force/privileged run with the user when intent is unclear.`
 
 func newMCPServer(appClients *config.AppClients) *mcplib.Server {
 	server := mcplib.NewServer(
-		&mcplib.Implementation{Name: "Container Workspace", Version: "v1.1.0"},
+		&mcplib.Implementation{Name: "Container Workspace", Version: "v1.2.0"},
 		&mcplib.ServerOptions{Instructions: mcpServerInstructions},
 	)
 	tools.SetupTools(server, appClients)

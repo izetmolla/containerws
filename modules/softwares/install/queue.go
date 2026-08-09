@@ -268,6 +268,11 @@ type retryBody struct {
 	Action     string `json:"action"`
 }
 
+type dismissBody struct {
+	ID         string `json:"id"`
+	SoftwareID string `json:"software_id"`
+}
+
 // RetryQueueAPI re-queues a failed/skipped item (or a software id) at the end of the line.
 func (cc *controller) RetryQueueAPI(c fiber.Ctx) error {
 	r := cc.app.Render()
@@ -381,6 +386,92 @@ func (cc *controller) RetryQueueAPI(c fiber.Ctx) error {
 			"queue": snapshotActiveQueue(db),
 		},
 		"message": fmt.Sprintf("Retry queued for %s", item.SoftwareName),
+	}))
+}
+
+// DismissFromQueue removes failed Installing rows (queue items and/or standalone jobs).
+// Pending/running items are never removed.
+func DismissFromQueue(db *gorm.DB, itemID, softwareID string) (removed int, err error) {
+	itemID = strings.TrimSpace(itemID)
+	softwareID = strings.TrimSpace(softwareID)
+	if itemID == "" && softwareID == "" {
+		return 0, errors.New("id or software_id required")
+	}
+
+	if itemID != "" && dismissJob(itemID) {
+		removed++
+	}
+
+	bulkQueue.mu.Lock()
+	next := make([]*queueItem, 0, len(bulkQueue.items))
+	for _, it := range bulkQueue.items {
+		match := false
+		if itemID != "" && it.ID == itemID {
+			match = true
+		}
+		if !match && softwareID != "" && it.SoftwareID == softwareID && it.Status == "error" {
+			match = true
+		}
+		if match {
+			if it.Status == "pending" || it.Status == "running" {
+				next = append(next, it)
+				continue
+			}
+			if it.JobID != "" {
+				_ = dismissJob(it.JobID)
+			}
+			removed++
+			continue
+		}
+		next = append(next, it)
+	}
+	bulkQueue.items = next
+	bulkQueue.mu.Unlock()
+
+	if softwareID != "" {
+		if j := getLatestJobForSoftware(softwareID); j != nil {
+			j.mu.Lock()
+			st := j.status
+			jid := j.ID
+			j.mu.Unlock()
+			if st == "error" && dismissJob(jid) {
+				removed++
+			}
+		}
+	}
+
+	if removed == 0 {
+		return 0, errors.New("nothing to dismiss")
+	}
+	_ = db
+	return removed, nil
+}
+
+// DismissQueueAPI removes a failed queue row (or standalone failed job) from Installing.
+func (cc *controller) DismissQueueAPI(c fiber.Ctx) error {
+	r := cc.app.Render()
+	db := cc.app.DB()
+
+	var body dismissBody
+	if err := c.Bind().Body(&body); err != nil {
+		return r.Api(c, r.WithError(err), r.WithStatus(fiber.StatusBadRequest))
+	}
+
+	removed, err := DismissFromQueue(db, body.ID, body.SoftwareID)
+	if err != nil {
+		status := fiber.StatusBadRequest
+		if strings.Contains(err.Error(), "nothing to dismiss") {
+			status = fiber.StatusNotFound
+		}
+		return r.Api(c, r.WithError(err), r.WithStatus(status))
+	}
+
+	return r.Api(c, r.WithStatus(fiber.StatusOK), r.WithData(fiber.Map{
+		"data": fiber.Map{
+			"removed": removed,
+			"queue":   snapshotActiveQueue(db),
+		},
+		"message": "Removed from installing queue",
 	}))
 }
 

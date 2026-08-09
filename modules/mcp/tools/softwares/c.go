@@ -45,6 +45,17 @@ func LoadTools(server *mcp.Server, app *config.AppClients) {
 			"action=logs returns recent journalctl lines for debugging. " +
 			"Fails clearly when the software is not listed or has no managed units.",
 	}, controller.ServiceTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "softwares_queue",
+		Description: "Show the Softwares install queue (pending/running/failed), including Brew jobs serialized with Softwares installs.",
+	}, controller.QueueTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "softwares_queue_dismiss",
+		Description: "Remove a failed Softwares/Brew install queue item so it no longer appears under Softwares → Installing. " +
+			"Pass id (queue row) and/or software_id. Does not cancel running jobs.",
+	}, controller.QueueDismissTool)
 }
 
 func (c *Controller) ensureCatalog() {

@@ -42,8 +42,14 @@ func registerResources(server *mcp.Server) {
 		"cws://docs/softwares": {
 			Name:        "softwares",
 			Title:       "Softwares catalog tools",
-			Description: "List/lookup/install/service Softwares module items — always check listed first.",
+			Description: "List/lookup/install/service Softwares items + install queue dismiss.",
 			Body:        softwaresDoc,
+		},
+		"cws://docs/brew": {
+			Name:        "brew",
+			Title:       "Homebrew tools",
+			Description: "Search/install/upgrade Homebrew formulae and casks via the Softwares queue.",
+			Body:        brewDoc,
 		},
 		"cws://docs/softwarepkg": {
 			Name:        "softwarepkg",
@@ -56,6 +62,12 @@ func registerResources(server *mcp.Server) {
 			Title:       "Kubernetes MCP tools",
 			Description: "Kubeconfig secrets ↔ clusters, pods, resources, events, nodes, helm — multi-cluster selection.",
 			Body:        kubernetesDoc,
+		},
+		"cws://docs/docker": {
+			Name:        "docker",
+			Title:       "Docker Engine MCP tools",
+			Description: "Containers, images, volumes, networks against workspace Docker environments, plus docker mcp gateway helpers.",
+			Body:        dockerDoc,
 		},
 		"cws://docs/auth": {
 			Name:        "auth",
@@ -251,34 +263,43 @@ You control this container workspace through tools. Read domain guides before co
 - cws://docs/filesystem
 - cws://docs/browser
 - cws://docs/softwares
+- cws://docs/brew
 - cws://docs/softwarepkg
 - cws://docs/kubernetes
+- cws://docs/docker
 - cws://docs/auth
 
 ## Capabilities
-1. **bash** — full shell (installs, services, builds, networking)
-2. **filesystem** — structured file CRUD + search
+1. **bash** — full shell (installs, services, builds, networking; Homebrew on PATH when present)
+2. **filesystem** — structured file CRUD + search + zip/unzip
 3. **browser_*** — open Chromium/Chrome (if installed) and automate UI via DevTools
-4. **softwares_*** — Softwares catalog (list → lookup listed? → install / service)
-5. **softwarepkg_*** — search registries + create/scaffold distro packages
-6. **kubernetes_*** / pods_* / resources_* / helm_* — manage clusters via kubeconfig secrets
+4. **softwares_*** — Softwares catalog (list → lookup listed? → install / service / queue)
+5. **brew_*** — Homebrew search/install/updates (queues into Softwares Installing)
+6. **softwarepkg_*** — search registries + create/scaffold distro packages
+7. **kubernetes_*** / pods_* / resources_* / helm_* — manage clusters via kubeconfig secrets
+8. **docker_*** — Docker Engine (containers/images/volumes/networks) + optional docker mcp gateway CLI
 
 ## Golden rules for correct results
-1. Prefer specialized tools over bash when both work (edit_file > sed; softwares_install > raw apt for catalog items; browser_click > xdotool; pods_list > kubectl via bash).
-2. Observe before acting: softwares_lookup / softwarepkg_search / configuration_contexts_list / list_directory / read_file / browser_a11y_snapshot / browser_status.
+1. Prefer specialized tools over bash when both work (edit_file > sed; softwares_install / brew_install > raw apt/brew; browser_click > xdotool; pods_list > kubectl via bash; docker_containers_list > docker ps).
+2. Observe before acting: softwares_lookup / brew_status / softwarepkg_search / configuration_contexts_list / docker_engine_status / list_directory / read_file / browser_a11y_snapshot / browser_status.
 3. After mutations, verify (re-read file, browser_assert / a11y snapshot, check exit_code / on_host).
 4. Keep commands non-interactive (DEBIAN_FRONTEND=noninteractive, -y flags).
 5. Destructive ops need explicit intent (delete_path recursive, rm -rf, pods_delete, resources_delete).
 6. Do not claim UI success without browser_assert, browser_a11y_snapshot, or browser_screenshot.
 7. Never call softwares_install unless softwares_lookup returns listed=true.
-8. Before inventing a new package, softwarepkg_search; then softwarepkg_create / softwarepkg_scaffold.
-9. With multiple kubeconfig secrets/clusters, ASK which secret and cluster before mutating.
+8. If softwares_lookup package_manager=brew (or ownership brew), use brew_* tools — do not softwares_install.
+9. Before inventing a new package, softwarepkg_search; then softwarepkg_create / softwarepkg_scaffold.
+10. With multiple kubeconfig secrets/clusters, ASK which secret and cluster before mutating.
 
 ## Typical flows
 - **Install catalog software**: softwares_lookup → softwares_install → softwares_lookup (on_host / is_installed).
-- **Install ad-hoc package**: softwares_lookup (listed=false) → bash (apt/dnf) → verify path.
+- **Install via Homebrew**: brew_status → brew_search → brew_install → softwares_queue.
+- **Check brew updates**: brew_check_updates (queues upgrades) → softwares_queue.
+- **Dismiss failed install**: softwares_queue → softwares_queue_dismiss id=…
+- **Install ad-hoc package**: softwares_lookup (listed=false) → bash (apt/dnf) or brew_install → verify path.
 - **Create package for an app**: softwarepkg_search → softwarepkg_create (+ optional softwarepkg_scaffold) → softwarepkg_image → softwares_install.
 - **Edit code**: search_files → read_file → edit_file → bash tests.
+- **Zip files**: zip_paths / unzip_path.
 - **Web UI task**: browser_status → browser_open → a11y snapshot → click/fill by ref → assert → close.
 - **Kubernetes**: configuration_contexts_list → ask user which secret/cluster → pods_list / resources_* / events_list.
 `
@@ -304,8 +325,13 @@ Tool: **bash**
 - Package installs:
   - Debian/Ubuntu: apt-get update && apt-get install -y <pkgs>
   - Fedora: dnf install -y <pkgs>
+  - Homebrew: prefer **brew_*** MCP tools; raw ` + "`brew`" + ` works when Linuxbrew is on PATH
 - Service control: systemctl start|stop|restart|status <unit>
 - Chromium install: Softwares catalog item "Google Chrome" (container-safe wrapper chrome-desktop).
+
+## Homebrew PATH
+After Brew Package bootstrap, ` + "`/home/linuxbrew/.linuxbrew/bin`" + ` is prepended for bash -lc sessions
+(and written to /etc/profile.d/homebrew.sh). If ` + "`command -v brew`" + ` fails, call brew_status / EnsureBrewShellPath via status tool.
 
 ## Interpreting results
 - exit_code != 0 is a tool-level error (IsError) — read stderr and recover.
@@ -320,12 +346,15 @@ const filesystemDoc = `
 - list_directory / make_directory
 - delete_path / move_path / copy_path
 - stat_path / search_files
+- zip_paths / unzip_path — File Manager archive parity
 
 ## Conventions
 - Paths may be absolute or relative to the process CWD.
 - edit_file requires a unique old_string unless replace_all=true.
 - delete_path on non-empty dirs requires recursive=true.
 - search_files: name_glob and/or content_pattern (regex).
+- zip_paths: one or more paths → .zip (optional destination).
+- unzip_path: extract .zip (optional destination directory).
 
 ## Recommended edit loop
 1. search_files to locate targets
@@ -425,19 +454,25 @@ Manage packages that exist in the Container Workspace **Softwares** module (same
 | Tool | Purpose |
 |------|---------|
 | softwares_list | List catalog items (optional query filter) |
-| softwares_lookup | Check if name/id is **listed**, plus DB install + host probe |
-| softwares_install | Run catalog install script (requires listed=true) |
+| softwares_lookup | Check if name/id is **listed**, plus DB install + host probe + package_manager / brew_available |
+| softwares_install | Run catalog install script (requires listed=true; blocked when owned by brew) |
 | softwares_service | status/start/stop/restart for items with can_control + service_units |
+| softwares_queue | Softwares/Brew install queue (pending/running/failed) |
+| softwares_queue_dismiss | Remove a **failed** queue row from Softwares → Installing |
 
 ## Always check listed first
 1. **softwares_lookup** with name_or_id (e.g. "Go", "Docker", "Chrome").
-2. If **listed=false** → do **not** call softwares_install; use **bash** (apt/dnf) or **softwarepkg_create** to add a package.
-3. If **listed=true** → softwares_install (optional version / dry_run).
-4. Verify with softwares_lookup again (is_installed, on_host) or softwares_service status.
+2. If **listed=false** → do **not** call softwares_install; use **bash** (apt/dnf), **brew_***, or **softwarepkg_create**.
+3. If **package_manager=brew** → use **brew_*** tools (or switch ownership in UI); do not softwares_install.
+4. If **listed=true** and local → softwares_install (optional version / dry_run).
+5. Verify with softwares_lookup again (is_installed, on_host) or softwares_service status.
+6. Failed installs: softwares_queue → softwares_queue_dismiss.
 
 ## Fields to trust
 - listed — present in Softwares catalog
 - is_installed — row in software_installed table
+- package_manager — local | brew
+- brew_available — matching Homebrew formula/cask token exists
 - on_host — probe found binary/path on this machine
 - has_update — installed version ≠ latest catalog version
 
@@ -445,6 +480,32 @@ Manage packages that exist in the Container Workspace **Softwares** module (same
 - softwares_lookup name_or_id=Go
 - softwares_install name_or_id="Docker Engine"
 - softwares_service name_or_id=docker action=status
+- softwares_queue_dismiss id=<queue-item-id>
+`
+
+const brewDoc = `
+# Homebrew tools (brew_*)
+
+Homebrew formulae/casks on this host. Actions enqueue into the **Softwares install queue**
+so they never overlap Softwares/VNC package jobs.
+
+## Tools
+| Tool | Purpose |
+|------|---------|
+| brew_status | Module enabled, binary path, prefix, bootstrap |
+| brew_search | Search cached formulae/casks |
+| brew_installed | List installed packages (+ outdated) |
+| brew_install | Queue install/upgrade/uninstall (kind=formula\|cask) |
+| brew_check_updates | brew update + list outdated + queue upgrades (default) |
+
+## Flow
+1. brew_status — if binary_present=false, enable Brew in Settings / UI bootstrap first
+2. brew_search query=… (or brew_installed)
+3. brew_install action=install names=["jq"] kind=formula
+4. softwares_queue to watch progress; softwares_queue_dismiss for failures
+
+## Ownership
+Tokens owned by Softwares (package_manager=local) are blocked until switched in the UI.
 `
 
 const softwarepkgDoc = `
@@ -579,6 +640,48 @@ Most tools accept optional kubeconfig_id and context (ClusterRef). Omit to use t
 - pods_list_in_namespace namespace=default
 - resources_list apiVersion=apps/v1 kind=Deployment namespace=default
 - pods_log name=my-pod namespace=default tail=200
+`
+
+const dockerDoc = `
+# Docker Engine MCP tools
+
+Native Docker Engine management against Container Workspace **Docker environments** (same backends as the Docker UI).
+Gateway helpers probe the optional [docker/mcp-gateway](https://github.com/docker/mcp-gateway) CLI plugin ("docker mcp").
+
+## Environments
+
+1. Call **docker_environments_list** to see local socket / TLS / SSH targets.
+2. Pass optional **environment_id** on tools, or omit to use the workspace default.
+3. Prefer **docker_engine_status** before mutating.
+
+## Engine tools
+
+| Tool | Purpose |
+|------|---------|
+| docker_engine_status | Ping Engine; version + container/image counts |
+| docker_environments_list | List configured environments |
+| docker_containers_list / get / logs | Inspect containers |
+| docker_containers_start / stop / restart / remove | Lifecycle |
+| docker_containers_run | Create+start (image, ports, volumes, env, network) |
+| docker_images_list / pull / remove | Images |
+| docker_volumes_list / remove | Volumes |
+| docker_networks_list | Networks |
+
+## MCP Gateway CLI (optional)
+
+These do **not** replace Engine tools — they detect/list the Docker MCP Toolkit gateway when the plugin is installed:
+
+| Tool | Purpose |
+|------|---------|
+| docker_mcp_gateway_status | Detect "docker mcp" plugin / version |
+| docker_mcp_tools_list | Run "docker mcp tools ls" (catalog from gateway profiles) |
+
+Install the plugin via Docker Desktop MCP Toolkit or build https://github.com/docker/mcp-gateway.
+
+## Safety
+
+- Confirm **remove** / **force** / privileged **run** with the user when intent is unclear.
+- Prefer docker_* tools over raw docker via bash when both work.
 `
 
 const authDoc = `

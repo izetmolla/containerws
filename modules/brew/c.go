@@ -32,6 +32,7 @@ func SetupRoutesAPI(router fiber.Router, appClients *config.AppClients) {
 	api.Get("/installed", cc.GetInstalledAPI)
 	api.Get("/analytics/install/:days", cc.GetAnalyticsAPI)
 	api.Post("/actions", cc.PostActionsAPI)
+	api.Post("/check-updates", cc.PostCheckUpdatesAPI)
 	api.Get("/jobs", cc.GetJobsAPI)
 	api.Get("/jobs/:id", cc.GetJobAPI)
 	api.Post("/switch", cc.PostSwitchAPI)
@@ -659,6 +660,103 @@ func (cc *controller) PostActionsAPI(c fiber.Ctx) error {
 	return r.Api(c, r.WithStatus(fiber.StatusAccepted), r.WithData(fiber.Map{
 		"data":    job,
 		"message": "Brew job queued",
+	}))
+}
+
+// PostCheckUpdatesAPI runs `brew update`, lists outdated packages, and optionally
+// queues upgrades (default) into the Softwares install queue.
+func (cc *controller) PostCheckUpdatesAPI(c fiber.Ctx) error {
+	r := cc.app.Render()
+	db := cc.app.DB()
+
+	var body struct {
+		Upgrade *bool `json:"upgrade"`
+	}
+	_ = c.Bind().Body(&body)
+	doUpgrade := true
+	if body.Upgrade != nil {
+		doUpgrade = *body.Upgrade
+	}
+
+	if ResolveBrewPath() == "" {
+		return r.Api(c, r.WithError(fiber.NewError(fiber.StatusBadRequest, "brew is not installed")), r.WithStatus(fiber.StatusBadRequest))
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Minute)
+	defer cancel()
+
+	brewPath := ResolveBrewPath()
+	updateOut, updateErr := runBrewCombined(ctx, brewPath, "update")
+	if updateErr != nil {
+		// Still try to read outdated state — brew update can fail offline.
+		AppendBootstrapNote("brew update: " + updateErr.Error())
+	}
+
+	items, err := listInstalledFormulae(ctx)
+	if err != nil {
+		return r.Api(c, r.WithError(err), r.WithStatus(fiber.StatusInternalServerError))
+	}
+
+	type outdatedRow struct {
+		Name string `json:"name"`
+		Kind string `json:"kind"`
+	}
+	outdated := make([]outdatedRow, 0)
+	formulae := make([]string, 0)
+	casks := make([]string, 0)
+	for _, it := range items {
+		name, _ := it["name"].(string)
+		kind, _ := it["kind"].(string)
+		isOut, _ := it["outdated"].(bool)
+		if name == "" || !isOut {
+			continue
+		}
+		if ownershipForToken(db, name) == models.PackageManagerLocal {
+			continue
+		}
+		if kind != "cask" {
+			kind = "formula"
+		}
+		outdated = append(outdated, outdatedRow{Name: name, Kind: kind})
+		if kind == "cask" {
+			casks = append(casks, name)
+		} else {
+			formulae = append(formulae, name)
+		}
+	}
+
+	queued := 0
+	if doUpgrade && softwaresEnqueue != nil {
+		if len(formulae) > 0 {
+			n, _, qErr := softwaresEnqueue(db, "upgrade", formulae, "formula")
+			if qErr == nil {
+				queued += n
+			}
+		}
+		if len(casks) > 0 {
+			n, _, qErr := softwaresEnqueue(db, "upgrade", casks, "cask")
+			if qErr == nil {
+				queued += n
+			}
+		}
+	}
+
+	msg := fmt.Sprintf("Found %d outdated package(s)", len(outdated))
+	if doUpgrade {
+		msg = fmt.Sprintf("Found %d outdated · queued %d upgrade(s)", len(outdated), queued)
+	}
+	if updateErr != nil && len(outdated) == 0 {
+		msg = "brew update failed: " + updateErr.Error()
+	}
+
+	return r.Api(c, r.WithStatus(fiber.StatusOK), r.WithData(fiber.Map{
+		"data": fiber.Map{
+			"update_log": truncateLog(updateOut, 4000),
+			"update_ok":  updateErr == nil,
+			"outdated":   outdated,
+			"queued":     queued,
+		},
+		"message": msg,
 	}))
 }
 
