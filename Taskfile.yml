@@ -92,3 +92,10 @@ tasks:
     cmds:
       - pnpm install
       - pnpm build
+
+  docs:deploy:
+    desc: Build docs and push via Docusaurus deploy (SSH) to gh-pages
+    dir: docs
+    cmds:
+      - pnpm install
+      - USE_SSH=true pnpm deploy

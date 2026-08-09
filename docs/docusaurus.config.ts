@@ -11,11 +11,14 @@ const config: Config = {
     v4: true,
   },
 
+  // GitHub Pages project site: https://izetmolla.github.io/containerws/
   url: 'https://izetmolla.github.io',
-  baseUrl: '/',
+  baseUrl: '/containerws/',
 
   organizationName: 'izetmolla',
   projectName: 'containerws',
+
+  trailingSlash: false,
 
   onBrokenLinks: 'throw',
 
