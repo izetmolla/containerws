@@ -364,7 +364,7 @@ Tooling versions match [filebrowser CI](https://github.com/filebrowser/filebrows
 
 ### Homebrew tap
 
-GoReleaser updates [`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) (`Formula/containerws.rb`) on each non-prerelease publish.
+GoReleaser updates [`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) (`Casks/containerws.rb`) on each non-prerelease publish.
 
 One-time setup:
 
@@ -378,7 +378,7 @@ One-time setup:
 
 3. Add repo secret **`HOMEBREW_TAP_TOKEN`** on `izetmolla/containerws` with that PAT.
 
-4. Publish a release — formula appears in the tap; install with `brew install izetmolla/tap/containerws`.
+4. Publish a release — cask appears in the tap; install with `brew install izetmolla/tap/containerws`.
 
 If `HOMEBREW_TAP_TOKEN` is missing, the GitHub Release still publishes and brew upload is skipped.
 

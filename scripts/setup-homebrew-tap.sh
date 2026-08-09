@@ -61,7 +61,7 @@ trap cleanup EXIT
 
 gh repo clone "$FULL" "$TMP/tap" -- --depth 1
 cd "$TMP/tap"
-mkdir -p Formula
+mkdir -p Casks
 if [[ ! -f README.md ]]; then
   cat > README.md <<'EOF'
 # homebrew-tap
@@ -72,14 +72,14 @@ Homebrew tap for [Container Workspace](https://github.com/izetmolla/containerws)
 brew install izetmolla/tap/containerws
 ```
 
-Formulae are updated automatically by GoReleaser on each release.
+Casks are updated automatically by GoReleaser on each release.
 EOF
 fi
-if [[ ! -f Formula/.gitkeep ]]; then
-  touch Formula/.gitkeep
+if [[ ! -f Casks/.gitkeep ]]; then
+  touch Casks/.gitkeep
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
-  git add README.md Formula/.gitkeep
+  git add README.md Casks/.gitkeep
   git -c user.email="goreleaser@containerws.local" -c user.name="containerws" \
     commit -m "Initialize Homebrew tap for containerws" || true
   git push origin HEAD
@@ -103,7 +103,7 @@ if [[ "$SET_SECRET" -eq 1 ]]; then
   fi
   echo "==> Setting HOMEBREW_TAP_TOKEN on ${APP_REPO} from current gh session"
   printf '%s' "$TOKEN" | gh secret set HOMEBREW_TAP_TOKEN --repo "$APP_REPO"
-  echo "✓ Secret set. Publish a release to update Formula/containerws.rb"
+  echo "✓ Secret set. Publish a release to update Casks/containerws.rb"
 fi
 
 echo
