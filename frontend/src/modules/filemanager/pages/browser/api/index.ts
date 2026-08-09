@@ -286,6 +286,49 @@ export async function downloadFile(path: string) {
   )
 }
 
+/** Single file → raw download; folder or multi-select → streamed zip. */
+export async function downloadEntries(
+  entries: Array<{ path: string; type?: string; name?: string }>
+) {
+  const clean = entries.filter((e) => e.path?.trim())
+  if (clean.length === 0) return
+  if (clean.length === 1 && clean[0].type !== "directory") {
+    await downloadFile(clean[0].path)
+    return
+  }
+  const paths = clean.map((e) => e.path)
+  const suggested =
+    clean.length === 1
+      ? `${(clean[0].name || clean[0].path.split("/").filter(Boolean).pop() || "folder").replace(/\.zip$/i, "")}.zip`
+      : "download.zip"
+  await downloadAuthenticatedBlob(
+    `${FILEMANAGER_OPS_BASE}/download-archive`,
+    undefined,
+    suggested,
+    { method: "post", data: { paths } }
+  )
+}
+
+export async function zipPaths(paths: string[], destination?: string) {
+  return ApiService.fetchData<
+    MutationResponse<{ path: string; name: string; count: number }>
+  >({
+    url: `${FILEMANAGER_OPS_BASE}/zip`,
+    method: "post",
+    data: { paths, destination: destination || undefined },
+  })
+}
+
+export async function unzipPath(path: string, destination?: string) {
+  return ApiService.fetchData<
+    MutationResponse<{ path: string; extracted: number; source: string }>
+  >({
+    url: `${FILEMANAGER_OPS_BASE}/unzip`,
+    method: "post",
+    data: { path, destination: destination || undefined },
+  })
+}
+
 export function formatBytes(n: number) {
   if (!Number.isFinite(n) || n < 0) return "—"
   if (n < 1024) return `${n} B`

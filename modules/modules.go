@@ -18,9 +18,11 @@ import (
 	"github.com/izetmolla/containerws/modules/proxymanager"
 	"github.com/izetmolla/containerws/modules/settings"
 	"github.com/izetmolla/containerws/modules/softwares"
+	swinstall "github.com/izetmolla/containerws/modules/softwares/install"
 	"github.com/izetmolla/containerws/modules/users"
 	"github.com/izetmolla/containerws/modules/vncnovnc"
 	"github.com/izetmolla/containerws/modules/vscode"
+	"gorm.io/gorm"
 )
 
 const remoteDesktopPrefix = "/remotedesktop"
@@ -61,6 +63,28 @@ func SetupRoutes(app *fiber.App, appClients *config.AppClients) {
 
 	softwares.SetupRoutesAPI(api, appClients)
 	brew.SetupRoutesAPI(api, appClients)
+
+	// Serialize Brew installs with Softwares / VNC package jobs on one queue.
+	swinstall.SetBrewActionRunner(func(action, kind string, names []string) (jobID, message string, err error) {
+		job, runErr := brew.RunActionSync(action, names, kind)
+		if job != nil {
+			jobID = job.ID
+			if job.Status == "success" {
+				brew.ApplyJobOwnership(appClients.DB(), job)
+				message = "brew " + action + " completed"
+			} else if job.Error != "" {
+				message = job.Error
+			}
+		}
+		return jobID, message, runErr
+	})
+	brew.SetSoftwaresQueueEnqueue(func(db *gorm.DB, action string, names []string, kind string) (int, any, error) {
+		n, snap, err := swinstall.EnqueueBrewActions(db, action, names, kind)
+		return n, snap, err
+	})
+	// Detect brew CLI installs (outside the portal) and mirror them into Softwares installed.
+	brew.StartSyncAsync(appClients.DB())
+
 	docker.SetupRoutesAPI(api, appClients)
 	filemanager.SetupRoutesAPI(api, appClients)
 	kubernetes.SetupRoutesAPI(api, appClients)

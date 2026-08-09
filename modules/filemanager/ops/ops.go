@@ -34,6 +34,9 @@ func SetupRoutesAPI(api fiber.Router, appClients *config.AppClients) {
 	api.Post("/chmod", cc.ChmodAPI)
 	api.Post("/upload", cc.UploadAPI)
 	api.Get("/download", cc.DownloadAPI)
+	api.Post("/download-archive", cc.DownloadArchiveAPI)
+	api.Post("/zip", cc.ZipAPI)
+	api.Post("/unzip", cc.UnzipAPI)
 	api.Get("/read", cc.ReadAPI)
 	api.Post("/write", cc.WriteAPI)
 

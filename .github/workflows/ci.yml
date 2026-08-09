@@ -49,3 +49,7 @@ jobs:
           distribution: goreleaser
           version: "~2.8"
           args: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Present (possibly empty) so .Env.HOMEBREW_TAP_TOKEN templates resolve.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

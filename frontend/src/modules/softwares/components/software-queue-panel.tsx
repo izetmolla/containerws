@@ -102,6 +102,15 @@ export function SoftwareQueuePanel({
   )
 }
 
+function queueItemHref(item: SoftwareQueueItem) {
+  if (item.href) return item.href
+  if (item.source === "brew" && item.brew_name) {
+    const kind = item.brew_kind ? `?kind=${encodeURIComponent(item.brew_kind)}` : ""
+    return `/brew/${encodeURIComponent(item.brew_name)}${kind}`
+  }
+  return `/softwares/${item.software_id}`
+}
+
 function QueueRow({ item }: { item: SoftwareQueueItem }) {
   const accent = item.color || "var(--primary)"
   const pending = item.status === "pending"
@@ -139,13 +148,13 @@ function QueueRow({ item }: { item: SoftwareQueueItem }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/softwares/${item.software_id}`}
+            to={queueItemHref(item)}
             className="truncate text-sm font-medium hover:underline"
           >
             {item.software_name || item.software_id}
           </Link>
           <span className="text-xs text-muted-foreground">
-            {actionLabel(item.action)}
+            {item.source === "brew" ? `Brew · ${actionLabel(item.action)}` : actionLabel(item.action)}
           </span>
         </div>
         <p

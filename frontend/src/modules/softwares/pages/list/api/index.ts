@@ -293,6 +293,10 @@ export type SoftwareQueueItem = {
   color?: string
   category?: string
   version?: string
+  source?: string
+  brew_name?: string
+  brew_kind?: string
+  href?: string
   enqueued_at?: string
   finished_at?: string | null
 }

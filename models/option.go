@@ -26,12 +26,11 @@ const (
 	OptionWorkspaceDescription = "WORKSPACE_DESCRIPTION"
 
 	// Module sidebar visibility (General settings). Missing → disabled (opt-in).
-	// EnsureModuleSidebarDefaults seeds explicit values on first boot.
+	// EnsureModuleSidebarDefaults seeds explicit false on first install.
 	OptionDockerModuleEnabled       = "DOCKER_MODULE_ENABLED"
 	OptionKubernetesModuleEnabled   = "KUBERNETES_MODULE_ENABLED"
 	OptionProxymanagerModuleEnabled = "PROXYMANAGER_MODULE_ENABLED"
-	// Brew Package module. Missing → disabled (opt-in; unlike other modules).
-	OptionBrewModuleEnabled = "BREW_MODULE_ENABLED"
+	OptionBrewModuleEnabled         = "BREW_MODULE_ENABLED"
 	// OptionModuleSidebarDefaultsSeeded marks that first-boot module defaults were applied.
 	OptionModuleSidebarDefaultsSeeded = "MODULE_SIDEBAR_DEFAULTS_SEEDED"
 
@@ -157,9 +156,10 @@ func LocalhostAutoLoginEnabled(db *gorm.DB) bool {
 	return v
 }
 
-// EnsureModuleSidebarDefaults seeds Docker / Kubernetes / Proxy Manager toggles.
-// Brand-new databases get false (off). Existing databases that never stored the
-// keys get true once so previously visible sidebar modules stay available.
+// EnsureModuleSidebarDefaults seeds Docker / Kubernetes / Proxy Manager / Brew toggles.
+// Brand-new installs (no users yet) always get false (off).
+// Existing installs that already have users keep previously-visible modules on when
+// the keys were never stored (one-time upgrade). Brew is always seeded off when missing.
 func EnsureModuleSidebarDefaults(db *gorm.DB) error {
 	if db == nil {
 		return nil
@@ -167,19 +167,28 @@ func EnsureModuleSidebarDefaults(db *gorm.DB) error {
 	if _, seeded, err := GetOption(db, OptionModuleSidebarDefaultsSeeded); err != nil {
 		return err
 	} else if seeded {
+		// Still ensure Brew exists as off if somehow missing after an older seed.
+		if _, found, err := GetOption(db, OptionBrewModuleEnabled); err != nil {
+			return err
+		} else if !found {
+			if err := SetOptionBool(db, OptionBrewModuleEnabled, false); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
-	var userCount, optionCount int64
+	var userCount int64
 	_ = db.Model(&User{}).Count(&userCount).Error
-	_ = db.Model(&Option{}).Count(&optionCount).Error
-	// Any prior data ⇒ treat as upgrade and keep modules on when keys are missing.
-	legacyDefaultOn := userCount > 0 || optionCount > 0
+	// Only treat as upgrade when real users already exist — not merely because
+	// other option rows were seeded (that wrongly flipped modules on for fresh DBs).
+	legacyDefaultOn := userCount > 0
 
 	keys := []string{
 		OptionDockerModuleEnabled,
 		OptionKubernetesModuleEnabled,
 		OptionProxymanagerModuleEnabled,
+		OptionBrewModuleEnabled,
 	}
 	for _, key := range keys {
 		if _, found, err := GetOption(db, key); err != nil {
@@ -187,7 +196,12 @@ func EnsureModuleSidebarDefaults(db *gorm.DB) error {
 		} else if found {
 			continue
 		}
-		if err := SetOptionBool(db, key, legacyDefaultOn); err != nil {
+		value := legacyDefaultOn
+		// Brew stays opt-in even for upgrades (never auto-enable).
+		if key == OptionBrewModuleEnabled {
+			value = false
+		}
+		if err := SetOptionBool(db, key, value); err != nil {
 			return err
 		}
 	}

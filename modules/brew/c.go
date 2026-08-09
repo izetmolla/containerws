@@ -1,10 +1,11 @@
 package brew
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
-	"context"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/izetmolla/containerws/config"
@@ -528,6 +529,9 @@ func attachSoftwareFields(data fiber.Map, db *gorm.DB, sw *models.Software) {
 
 func (cc *controller) GetInstalledAPI(c fiber.Ctx) error {
 	r := cc.app.Render()
+	db := cc.app.DB()
+	// Refresh Softwares ownership from brew CLI installs (throttled).
+	SyncHostInstallsThrottled(db)
 	if ResolveBrewPath() == "" {
 		return r.Api(c, r.WithStatus(fiber.StatusOK), r.WithData(fiber.Map{
 			"data": fiber.Map{"items": []any{}, "brew_missing": true},
@@ -537,7 +541,6 @@ func (cc *controller) GetInstalledAPI(c fiber.Ctx) error {
 	if err != nil {
 		return r.Api(c, r.WithError(err), r.WithStatus(fiber.StatusInternalServerError))
 	}
-	db := cc.app.DB()
 	out := make([]fiber.Map, 0, len(items))
 	for _, it := range items {
 		name, _ := it["name"].(string)
@@ -623,6 +626,26 @@ func (cc *controller) PostActionsAPI(c fiber.Ctx) error {
 		if own == models.PackageManagerLocal {
 			return r.Api(c, r.WithError(fiber.NewError(fiber.StatusConflict, "package is managed by Softwares; switch package manager first")), r.WithStatus(fiber.StatusConflict), r.WithErrorCode("OWNED_BY_SOFTWARES"))
 		}
+	}
+
+	// Prefer Softwares install queue so brew never overlaps Softwares/VNC jobs.
+	if softwaresEnqueue != nil {
+		queued, snap, err := softwaresEnqueue(db, body.Action, body.Names, body.Kind)
+		if err != nil {
+			status := fiber.StatusBadRequest
+			if strings.Contains(err.Error(), "already queued") {
+				status = fiber.StatusConflict
+			}
+			return r.Api(c, r.WithError(err), r.WithStatus(status))
+		}
+		return r.Api(c, r.WithStatus(fiber.StatusAccepted), r.WithData(fiber.Map{
+			"data": fiber.Map{
+				"queued": queued,
+				"queue":  snap,
+				"source": "softwares_queue",
+			},
+			"message": fmt.Sprintf("Queued %d Brew package(s) in Softwares install queue", queued),
+		}))
 	}
 
 	job, err := startActionJob(body.Action, body.Names, body.Kind)
@@ -733,34 +756,42 @@ func watchJobOwnership(db *gorm.DB, jobID string) {
 		}
 		switch job.Status {
 		case "success":
-			ctx := context.Background()
-			for _, name := range job.Names {
-				sw, _ := FindSoftwareByBrewToken(db, name)
-				if sw == nil {
-					continue
-				}
-				hostVersions, _ := gorm.G[models.SoftwareVersion](db).
-					Where("software_id = ?", sw.ID).
-					Order("is_latest DESC").
-					Find(ctx)
-				versionID := ""
-				if len(hostVersions) > 0 {
-					versionID = hostVersions[0].ID
-				}
-				if versionID == "" {
-					continue
-				}
-				switch job.Action {
-				case "install", "upgrade":
-					_ = models.MarkSoftwareInstalledWithManager(db, sw.ID, versionID, models.PackageManagerBrew)
-				case "uninstall":
-					_ = models.MarkSoftwareUninstalled(db, sw.ID)
-				}
-			}
+			ApplyJobOwnership(db, job)
 			return
 		case "error":
 			return
 		}
 		time.Sleep(time.Second)
+	}
+}
+
+// ApplyJobOwnership marks matching Softwares rows after a successful brew job.
+func ApplyJobOwnership(db *gorm.DB, job *actionJob) {
+	if db == nil || job == nil || job.Status != "success" {
+		return
+	}
+	ctx := context.Background()
+	for _, name := range job.Names {
+		sw, _ := FindSoftwareByBrewToken(db, name)
+		if sw == nil {
+			continue
+		}
+		hostVersions, _ := gorm.G[models.SoftwareVersion](db).
+			Where("software_id = ?", sw.ID).
+			Order("is_latest DESC").
+			Find(ctx)
+		versionID := ""
+		if len(hostVersions) > 0 {
+			versionID = hostVersions[0].ID
+		}
+		if versionID == "" {
+			continue
+		}
+		switch job.Action {
+		case "install", "upgrade":
+			_ = models.MarkSoftwareInstalledWithManager(db, sw.ID, versionID, models.PackageManagerBrew)
+		case "uninstall":
+			_ = models.MarkSoftwareUninstalled(db, sw.ID)
+		}
 	}
 }

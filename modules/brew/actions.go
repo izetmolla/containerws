@@ -61,6 +61,37 @@ func listRecentJobs(limit int) []actionJob {
 }
 
 func startActionJob(action string, names []string, kind string) (*actionJob, error) {
+	job, err := createActionJob(action, names, kind)
+	if err != nil {
+		return nil, err
+	}
+	go runActionJob(job.ID)
+	return getJob(job.ID), nil
+}
+
+// RunActionSync runs a brew install/upgrade/uninstall on the calling goroutine
+// (used by the Softwares install queue so jobs never overlap).
+func RunActionSync(action string, names []string, kind string) (*actionJob, error) {
+	job, err := createActionJob(action, names, kind)
+	if err != nil {
+		return nil, err
+	}
+	runActionJob(job.ID)
+	final := getJob(job.ID)
+	if final == nil {
+		return nil, fmt.Errorf("brew job disappeared")
+	}
+	if final.Status == "error" {
+		msg := strings.TrimSpace(final.Error)
+		if msg == "" {
+			msg = "brew action failed"
+		}
+		return final, fmt.Errorf("%s", msg)
+	}
+	return final, nil
+}
+
+func createActionJob(action string, names []string, kind string) (*actionJob, error) {
 	action = strings.ToLower(strings.TrimSpace(action))
 	switch action {
 	case "install", "upgrade", "uninstall":
@@ -111,8 +142,6 @@ func startActionJob(action string, names []string, kind string) (*actionJob, err
 	jobsMu.Lock()
 	jobs[id] = job
 	jobsMu.Unlock()
-
-	go runActionJob(id)
 	return getJob(id), nil
 }
 

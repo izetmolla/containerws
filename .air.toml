@@ -10,7 +10,7 @@ tmp_dir = "tmp"
   full_bin = "APP_ENV=dev APP_USER=air ./tmp/main --start -c .env"
   include_ext = ["go", "tpl", "tmpl", "html", "css", "js", "env", "yaml"]
   # Do not exclude "docker" — that also skips modules/docker and breaks live reload.
-  exclude_dir = ["docs","frontend","tmp", "assets", "vendor", "bin", "build", "deploy","tools/node_modules"]
+  exclude_dir = ["docs","frontend","tmp", "assets", "vendor", "bin", "build", "deploy","tools/node_modules",".pnpm-store"]
   include_dir = []
   exclude_regex = ["_test.go"]
   exclude_file = []

@@ -8,7 +8,27 @@ Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 ---
 
+## Quick install — Homebrew (macOS / Linuxbrew)
+
+After a release that publishes the tap:
+
+```bash
+brew install izetmolla/tap/containerws
+```
+
+Or:
+
+```bash
+brew tap izetmolla/tap
+brew install containerws
+```
+
+Then run `containerws` / `cws` (same binary). Tap repo: [izetmolla/homebrew-tap](https://github.com/izetmolla/homebrew-tap). Setup notes are under **Binary releases → Homebrew tap**.
+
+---
+
 ## Quick install — native binary (recommended on bare metal / VM)
+
 
 Installs the latest GitHub Release binary, links `cws` / `containerws`, prepares `/config/containerws`, and starts a daemon that runs `cws --start` (systemd, launchd, OpenRC, FreeBSD rc, or **direct** mode when no init is available):
 
@@ -341,6 +361,26 @@ Preflight must pass before any tag is created. Use `--skip-build` / `--skip-pref
 Local app build only: `./scripts/build.sh` or `task build`.
 
 Tooling versions match [filebrowser CI](https://github.com/filebrowser/filebrowser/blob/master/.github/workflows/ci.yaml): **Go 1.26.x**, **Node 24.x**, **pnpm 10**.
+
+### Homebrew tap
+
+GoReleaser updates [`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) (`Formula/containerws.rb`) on each non-prerelease publish.
+
+One-time setup:
+
+1. Create the public tap (or run `./scripts/setup-homebrew-tap.sh`):
+
+   ```bash
+   gh repo create izetmolla/homebrew-tap --public --description "Homebrew tap for Container Workspace" --clone=false
+   ```
+
+2. Create a GitHub PAT (classic `repo`, or fine-grained **Contents: Read and write** on `homebrew-tap` only).
+
+3. Add repo secret **`HOMEBREW_TAP_TOKEN`** on `izetmolla/containerws` with that PAT.
+
+4. Publish a release — formula appears in the tap; install with `brew install izetmolla/tap/containerws`.
+
+If `HOMEBREW_TAP_TOKEN` is missing, the GitHub Release still publishes and brew upload is skipped.
 
 ## Build images locally
 

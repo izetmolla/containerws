@@ -61,6 +61,8 @@ func (cc *controller) GetSoftwaresListAPI(c fiber.Ctx) error {
 	ctx := c.Context()
 	r := cc.app.Render()
 	db := cc.app.DB()
+	// Mirror brew CLI installs into Softwares installed (throttled).
+	brew.SyncHostInstallsThrottled(db)
 
 	page := queryInt(c, "page", 1)
 	limit := queryInt(c, "limit", 12)

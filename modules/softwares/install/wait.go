@@ -104,6 +104,8 @@ func toQueueView(snap queueSnapshot) QueueView {
 			Version:      it.Version,
 			EnqueuedAt:   it.EnqueuedAt,
 			FinishedAt:   it.FinishedAt,
+			// Source / brew fields are on queueItem JSON via snapshotActiveQueue;
+			// QueueView is used by VNC waiters and does not need them.
 		})
 	}
 	return QueueView{

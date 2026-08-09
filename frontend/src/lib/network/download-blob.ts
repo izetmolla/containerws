@@ -101,14 +101,25 @@ export function openAuthenticatedDownload(
 
 export async function downloadAuthenticatedBlob(
   path: string,
-  params: Record<string, string | number>,
-  suggestedFilename: string
+  params: Record<string, string | number> | undefined,
+  suggestedFilename: string,
+  options?: {
+    method?: "get" | "post"
+    data?: unknown
+  }
 ) {
   try {
-    const response = await BaseService.get(path, {
-      params,
-      responseType: "blob",
-    })
+    const method = options?.method || "get"
+    const response =
+      method === "post"
+        ? await BaseService.post(path, options?.data ?? {}, {
+            params,
+            responseType: "blob",
+          })
+        : await BaseService.get(path, {
+            params,
+            responseType: "blob",
+          })
 
     const blob = response.data as Blob
     const contentType = String(

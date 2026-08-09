@@ -175,6 +175,7 @@ jobs:
           args: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Bump version, changelog, tag & push
         id: bump
@@ -235,6 +236,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with contents:write on izetmolla/homebrew-tap (Actions GITHUB_TOKEN cannot push other repos).
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Snapshot build only (no publish)
         if: steps.meta.outputs.do_snapshot == 'true'
@@ -251,6 +254,7 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
           MODE: ${{ steps.meta.outputs.mode }}
+          HAS_BREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         run: |
           {
             echo "## Release"
@@ -260,5 +264,10 @@ jobs:
             echo "- **Ref:** \`${{ github.ref }}\`"
             if [[ -n "${TAG}" && "${{ steps.meta.outputs.do_publish }}" == "true" ]]; then
               echo "- **Release:** https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+              if [[ "${HAS_BREW_TOKEN}" == "true" ]]; then
+                echo "- **Homebrew:** \`brew install izetmolla/tap/containerws\` (tap updated if not a prerelease)"
+              else
+                echo "- **Homebrew:** skipped (set repo secret \`HOMEBREW_TAP_TOKEN\` + create \`izetmolla/homebrew-tap\`)"
+              fi
             fi
           } >> "$GITHUB_STEP_SUMMARY"

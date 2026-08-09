@@ -14,6 +14,12 @@ This is for **bare-metal / VM** installs of the Go binary built by [`.goreleaser
 curl -sSL https://raw.githubusercontent.com/izetmolla/containerws/main/install/install.sh | bash
 ```
 
+Or via Homebrew (after the tap is published by a release):
+
+```bash
+brew install izetmolla/tap/containerws
+```
+
 Or download first:
 
 ```bash

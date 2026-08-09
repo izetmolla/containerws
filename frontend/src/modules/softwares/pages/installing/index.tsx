@@ -111,8 +111,11 @@ export default function SoftwaresInstallingPage() {
     mutationFn: (item: SoftwareQueueItem) =>
       retrySoftwareQueueItem({
         id: item.id.startsWith("job-") ? undefined : item.id,
-        softwareId: item.software_id,
-        action: (item.action as "install" | "update" | "uninstall") || "install",
+        softwareId: item.software_id || item.brew_name || "",
+        action:
+          item.source === "brew" && item.action === "update"
+            ? "update"
+            : ((item.action as "install" | "update" | "uninstall") || "install"),
       }),
     onSuccess: (res) => {
       toast.success(res.message || "Retry queued")
@@ -139,8 +142,16 @@ export default function SoftwaresInstallingPage() {
         cell: ({ row }) => {
           const item = row.original
           const accent = item.color || "var(--primary)"
+          const href =
+            item.href ||
+            (item.source === "brew" && item.brew_name
+              ? `/brew/${encodeURIComponent(item.brew_name)}${item.brew_kind ? `?kind=${encodeURIComponent(item.brew_kind)}` : ""}`
+              : `/softwares/${item.software_id}`)
           const subtitle =
-            [item.category, item.version ? `v${item.version}` : ""]
+            [
+              item.source === "brew" ? "Brew" : item.category,
+              item.version ? `v${item.version}` : "",
+            ]
               .filter(Boolean)
               .join(" · ") || actionLabel(item.action)
           return (
@@ -164,7 +175,7 @@ export default function SoftwaresInstallingPage() {
               )}
               <div className="min-w-0">
                 <Link
-                  to={`/softwares/${item.software_id}`}
+                  to={href}
                   className="block truncate font-medium hover:underline"
                 >
                   {item.software_name || item.software_id}

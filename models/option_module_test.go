@@ -27,10 +27,17 @@ func TestModuleEnabledDefaultsOffWhenMissing(t *testing.T) {
 	if ModuleEnabled(db, OptionDockerModuleEnabled) {
 		t.Fatal("expected missing module option to be off")
 	}
+	if BrewModuleEnabled(db) {
+		t.Fatal("expected missing brew option to be off")
+	}
 }
 
 func TestEnsureModuleSidebarDefaultsNewInstallOff(t *testing.T) {
 	db := testDB(t)
+	// Other options must not flip modules on for a fresh install.
+	if err := SetOption(db, OptionVNCInstalled, "false"); err != nil {
+		t.Fatal(err)
+	}
 	if err := EnsureModuleSidebarDefaults(db); err != nil {
 		t.Fatal(err)
 	}
@@ -38,10 +45,14 @@ func TestEnsureModuleSidebarDefaultsNewInstallOff(t *testing.T) {
 		OptionDockerModuleEnabled,
 		OptionKubernetesModuleEnabled,
 		OptionProxymanagerModuleEnabled,
+		OptionBrewModuleEnabled,
 	} {
 		if ModuleEnabled(db, key) {
 			t.Fatalf("%s should be off on new install", key)
 		}
+	}
+	if BrewModuleEnabled(db) {
+		t.Fatal("brew should be off on new install")
 	}
 	if err := EnsureModuleSidebarDefaults(db); err != nil {
 		t.Fatal(err)
@@ -64,5 +75,8 @@ func TestEnsureModuleSidebarDefaultsLegacyKeepsOn(t *testing.T) {
 		if !ModuleEnabled(db, key) {
 			t.Fatalf("%s should stay on for existing installs", key)
 		}
+	}
+	if BrewModuleEnabled(db) {
+		t.Fatal("brew should stay off even for legacy upgrades")
 	}
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowRightLeft,
@@ -31,7 +31,6 @@ import {
   getBrewAnalytics,
   getBrewFormulae,
   getBrewInstalled,
-  getBrewJob,
   getBrewStatus,
   runBrewAction,
   switchPackageManager,
@@ -194,10 +193,6 @@ function PaginationBar({
   onPageChange: (page: number) => void
   isFetching?: boolean
 }) {
-  if (totalPages <= 1) return null
-  const from = total === 0 ? 0 : (page - 1) * limit + 1
-  const to = Math.min(page * limit, total)
-
   const windowPages = useMemo(() => {
     const pages: number[] = []
     const start = Math.max(1, page - 2)
@@ -205,6 +200,10 @@ function PaginationBar({
     for (let i = start; i <= end; i++) pages.push(i)
     return pages
   }, [page, totalPages])
+
+  if (totalPages <= 1) return null
+  const from = total === 0 ? 0 : (page - 1) * limit + 1
+  const to = Math.min(page * limit, total)
 
   return (
     <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -279,22 +278,8 @@ function PaginationBar({
   )
 }
 
-async function waitBrewJob(id: string) {
-  for (let i = 0; i < 600; i++) {
-    await new Promise((r) => setTimeout(r, 1000))
-    const snap = await getBrewJob(id)
-    const st = snap.data?.status
-    if (st === "success" || st === "error") {
-      if (st === "error") {
-        throw new Error(snap.data?.error || "Brew action failed")
-      }
-      return snap
-    }
-  }
-  throw new Error("Timed out waiting for brew job")
-}
-
 export default function BrewDiscoverPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [q, setQ] = useState("")
   const debouncedQ = useDebounce(q, 500).trim()
@@ -351,18 +336,24 @@ export default function BrewDiscoverPage() {
       kind?: string
     }) => {
       setBusyName(name)
-      const job = await runBrewAction(action, [name], kind)
-      const id = job.data?.id
-      if (!id) return job
-      return waitBrewJob(id)
+      return runBrewAction(action, [name], kind)
     },
-    onSuccess: (_res, vars) => {
-      toast.success(`${vars.action} ${vars.name} completed`)
+    onSuccess: (res, vars) => {
+      toast.success(res.message || `${vars.action} ${vars.name} queued`, {
+        action: {
+          label: "View queue",
+          onClick: () => navigate("/softwares/installing"),
+        },
+      })
+      void queryClient.invalidateQueries({
+        queryKey: [SOFTWARES_FETCH_KEY, "queue"],
+      })
       void queryClient.invalidateQueries({ queryKey: [BREW_FORMULAE_KEY] })
       void queryClient.invalidateQueries({ queryKey: [BREW_INSTALLED_KEY] })
+      navigate("/softwares/installing")
     },
     onError: (err) => {
-      toast.error(getRequestErrorMessage(err, "Brew action failed"))
+      toast.error(getRequestErrorMessage(err, "Could not queue Brew action"))
     },
     onSettled: () => setBusyName(null),
   })

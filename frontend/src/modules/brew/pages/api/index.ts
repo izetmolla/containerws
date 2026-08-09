@@ -168,7 +168,14 @@ export async function runBrewAction(
   names: string[],
   kind?: BrewPackageKind | string
 ) {
-  return ApiService.fetchData<{ data: BrewJob; message?: string }>({
+  return ApiService.fetchData<{
+    data: BrewJob | {
+      queued?: number
+      queue?: import("@/modules/softwares/pages/list/api").SoftwareQueueSnapshot
+      source?: string
+    }
+    message?: string
+  }>({
     url: `${BREW_BASE}/actions`,
     method: "post",
     data: { action, names, kind },

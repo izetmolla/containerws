@@ -100,6 +100,7 @@ import {
   chmodPath,
   copyPath,
   createFile,
+  downloadEntries,
   downloadFile,
   duplicatePath,
   emptyTrash,
@@ -116,8 +117,10 @@ import {
   renamePath,
   restoreTrashItem,
   trashIdFromEntry,
+  unzipPath,
   uploadFile,
   writeFile,
+  zipPaths,
   type FileEntry,
   type FileRoot,
 } from "./api"
@@ -894,14 +897,38 @@ export default function FileManagerPage() {
       return
     }
     if (action === "download") {
+      void downloadEntries(items).catch((err) =>
+        toastRequestError(err, "Download failed")
+      )
+      return
+    }
+    if (action === "zip") {
       void (async () => {
-        for (const item of items) {
-          if (item.type === "directory") continue
-          try {
-            await downloadFile(item.path)
-          } catch (err) {
-            toastRequestError(err, `Download failed: ${item.name}`)
-          }
+        try {
+          const res = await zipPaths(items.map((i) => i.path))
+          toast.success(res.message || `Created ${res.data?.name || "archive"}`)
+          setSelected(new Set())
+          await invalidate()
+        } catch (err) {
+          toastRequestError(err, "Zip failed")
+        }
+      })()
+      return
+    }
+    if (action === "unzip") {
+      const archive = items[0]
+      if (!archive) return
+      void (async () => {
+        try {
+          const res = await unzipPath(archive.path)
+          toast.success(
+            res.message ||
+              `Extracted ${res.data?.extracted ?? 0} file(s) to ${res.data?.path || "folder"}`
+          )
+          setSelected(new Set())
+          await invalidate()
+        } catch (err) {
+          toastRequestError(err, "Unzip failed")
         }
       })()
       return
@@ -1021,10 +1048,44 @@ export default function FileManagerPage() {
         setDialog("chmod")
       },
       onDownload: () => {
-        void downloadFile(entry.path).catch((err) =>
+        const paths = resolveActionPaths(entry)
+        const items = entries.filter((e) => paths.includes(e.path))
+        void downloadEntries(items.length ? items : [entry]).catch((err) =>
           toastRequestError(err, "Download failed"),
         )
       },
+      onZip: () => {
+        const paths = resolveActionPaths(entry)
+        void (async () => {
+          try {
+            const res = await zipPaths(paths)
+            toast.success(res.message || `Created ${res.data?.name || "archive"}`)
+            setSelected(new Set())
+            await invalidate()
+          } catch (err) {
+            toastRequestError(err, "Zip failed")
+          }
+        })()
+      },
+      onUnzip:
+        entry.type !== "directory" &&
+        entry.name.toLowerCase().endsWith(".zip")
+          ? () => {
+              void (async () => {
+                try {
+                  const res = await unzipPath(entry.path)
+                  toast.success(
+                    res.message ||
+                      `Extracted ${res.data?.extracted ?? 0} file(s)`,
+                  )
+                  setSelected(new Set())
+                  await invalidate()
+                } catch (err) {
+                  toastRequestError(err, "Unzip failed")
+                }
+              })()
+            }
+          : undefined,
       onDelete: () => {
         setTarget(entry)
         setOpPaths(resolveActionPaths(entry))
@@ -1203,7 +1264,12 @@ export default function FileManagerPage() {
               }
             }}
             onAdd={() => {
-              sessions.addSession(currentPath)
+              // New tabs open at home/root, not the current folder.
+              sessions.addSession("")
+              setPath("")
+              setSelected(new Set())
+              setSearch("")
+              setPathEditing(false)
             }}
           />
           <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
@@ -1623,7 +1689,13 @@ export default function FileManagerPage() {
                               setDialog("chmod")
                             }}
                             onDownload={() => {
-                              void downloadFile(entry.path).catch((err) =>
+                              const paths = resolveActionPaths(entry)
+                              const items = entries.filter((e) =>
+                                paths.includes(e.path),
+                              )
+                              void downloadEntries(
+                                items.length ? items : [entry],
+                              ).catch((err) =>
                                 toastRequestError(err, "Download failed"),
                               )
                             }}
@@ -1727,7 +1799,13 @@ export default function FileManagerPage() {
                             setDialog("chmod")
                           }}
                           onDownload={() => {
-                            void downloadFile(entry.path).catch((err) =>
+                            const paths = resolveActionPaths(entry)
+                            const items = entries.filter((e) =>
+                              paths.includes(e.path),
+                            )
+                            void downloadEntries(
+                              items.length ? items : [entry],
+                            ).catch((err) =>
                               toastRequestError(err, "Download failed"),
                             )
                           }}
@@ -2256,12 +2334,10 @@ function EntryMenu({
               <Shield className="size-4" />
               Permissions…
             </DropdownMenuItem>
-            {entry.type !== "directory" ? (
-              <DropdownMenuItem onClick={onDownload}>
-                <Download className="size-4" />
-                Download
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem onClick={onDownload}>
+              <Download className="size-4" />
+              Download
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <Trash2 className="size-4" />

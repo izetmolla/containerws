@@ -14,6 +14,8 @@
 #
 # Requires: go, pnpm, goreleaser ≥2
 # Auth (publish only): GITHUB_TOKEN / GH_TOKEN, or `gh auth login` (repo scope)
+# Homebrew tap (optional): HOMEBREW_TAP_TOKEN — PAT with contents:write on izetmolla/homebrew-tap
+#   (falls back to GITHUB_TOKEN when unset so a broad PAT can update the tap too)
 #
 # Tip: after a successful publish + tag push, GitHub may still start the Release
 # workflow from the tag. Cancel that run — the release is already published
@@ -175,10 +177,13 @@ fi
 echo "==> GoReleaser publish → GitHub Release ${TAG}"
 export GITHUB_TOKEN="$TOKEN"
 export GH_TOKEN="$TOKEN"
+# Prefer dedicated tap token; otherwise reuse the publish token (must reach homebrew-tap).
+export HOMEBREW_TAP_TOKEN="${HOMEBREW_TAP_TOKEN:-$TOKEN}"
 goreleaser release --clean
 
 echo
 echo "✓ Published https://github.com/izetmolla/containerws/releases/tag/${TAG}"
+echo "  Homebrew: brew install izetmolla/tap/containerws  (if homebrew-tap was updated)"
 
 if [[ "$PUSH" -eq 1 ]]; then
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"

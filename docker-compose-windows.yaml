@@ -16,10 +16,9 @@
 # If systemd still fails on your WSL build, set CONTAINERWS_INIT=direct
 # (cws+sshd still run; start dockerd manually or via Softwares scripts).
 #
-# Bind-mount root (CONTAINERWS_HOST_ROOT):
-#   BAD  (no inotify):  /c/Users/.../WORKSPACE/containerws   ← Windows NTFS via 9p
-#   GOOD (inotify OK):  /home/<user>/WORKSPACE/containerws ← WSL Linux disk
-# Set via scripts/migrate-to-wsl-fs.ps1 (writes .env) or export before compose up.
+# Workspace / SSH / config use Docker named volumes (Linux ext4 inside the
+# Docker Desktop VM) — NOT Windows C:\ bind mounts — so inotify works for
+# air, Vite HMR, and git refresh inside the container.
 services:
   containerws:
     container_name: containerws
@@ -55,9 +54,9 @@ services:
     cap_drop:
       - SYS_MODULE
     volumes:
-      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/content:/workspace
-      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/keys.ssh:/root/.ssh
-      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/config:/config
+      - containerws-workspace:/workspace
+      - containerws-ssh:/root/.ssh
+      - containerws-config:/config
       - containerws-docker-data:/var/lib/docker
       # Intentionally NO /sys/fs/cgroup host bind-mount.
     networks:
@@ -65,6 +64,12 @@ services:
         ipv4_address: 10.10.26.50
 
 volumes:
+  containerws-workspace:
+    name: containerws-workspace
+  containerws-ssh:
+    name: containerws-ssh
+  containerws-config:
+    name: containerws-config
   containerws-docker-data:
     name: containerws-docker-data
 

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowRightLeft,
@@ -20,7 +20,6 @@ import {
   BREW_INSTALLED_KEY,
   BREW_STATUS_KEY,
   getBrewInstalled,
-  getBrewJob,
   getBrewStatus,
   runBrewAction,
   switchPackageManager,
@@ -28,22 +27,8 @@ import {
 import { FormulaGlyph } from "./formula-glyph"
 import { BrewInstallGate } from "./install-gate"
 
-async function waitBrewJob(id: string) {
-  for (let i = 0; i < 600; i++) {
-    await new Promise((r) => setTimeout(r, 1000))
-    const snap = await getBrewJob(id)
-    const st = snap.data?.status
-    if (st === "success" || st === "error") {
-      if (st === "error") {
-        throw new Error(snap.data?.error || "Brew action failed")
-      }
-      return snap
-    }
-  }
-  throw new Error("Timed out waiting for brew job")
-}
-
 export default function BrewInstalledPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [busyName, setBusyName] = useState<string | null>(null)
 
@@ -70,18 +55,24 @@ export default function BrewInstalledPage() {
       kind?: string
     }) => {
       setBusyName(name)
-      const job = await runBrewAction(action, [name], kind)
-      const id = job.data?.id
-      if (!id) return job
-      return waitBrewJob(id)
+      return runBrewAction(action, [name], kind)
     },
-    onSuccess: (_res, vars) => {
-      toast.success(`${vars.action} ${vars.name} completed`)
+    onSuccess: (res, vars) => {
+      toast.success(res.message || `${vars.action} ${vars.name} queued`, {
+        action: {
+          label: "View queue",
+          onClick: () => navigate("/softwares/installing"),
+        },
+      })
+      void queryClient.invalidateQueries({
+        queryKey: [SOFTWARES_FETCH_KEY, "queue"],
+      })
       void queryClient.invalidateQueries({ queryKey: [BREW_INSTALLED_KEY] })
       void queryClient.invalidateQueries({ queryKey: [BREW_FORMULAE_KEY] })
+      navigate("/softwares/installing")
     },
     onError: (err) => {
-      toast.error(getRequestErrorMessage(err, "Brew action failed"))
+      toast.error(getRequestErrorMessage(err, "Could not queue Brew action"))
     },
     onSettled: () => setBusyName(null),
   })

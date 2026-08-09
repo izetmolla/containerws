@@ -1,4 +1,6 @@
 import {
+  Archive,
+  ArchiveRestore,
   ClipboardCopy,
   ClipboardPaste,
   Code2,
@@ -44,6 +46,8 @@ export type EntryContextActions = {
   onPasteClipboard?: () => void
   onChmod?: () => void
   onDownload?: () => void
+  onZip?: () => void
+  onUnzip?: () => void
   onDelete?: () => void
   onRestore?: () => void
   onDeletePermanent?: () => void
@@ -164,10 +168,22 @@ export function EntryContextMenu({
                 Permissions…
               </ContextMenuItem>
             ) : null}
-            {entry.type !== "directory" && actions.onDownload ? (
+            {actions.onDownload ? (
               <ContextMenuItem onClick={actions.onDownload}>
                 <Download className="size-4" />
                 Download
+              </ContextMenuItem>
+            ) : null}
+            {actions.onZip ? (
+              <ContextMenuItem onClick={actions.onZip}>
+                <Archive className="size-4" />
+                Compress to zip
+              </ContextMenuItem>
+            ) : null}
+            {actions.onUnzip ? (
+              <ContextMenuItem onClick={actions.onUnzip}>
+                <ArchiveRestore className="size-4" />
+                Extract zip
               </ContextMenuItem>
             ) : null}
             <ContextMenuSeparator />

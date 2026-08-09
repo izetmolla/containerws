@@ -94,3 +94,22 @@ release:
   draft: false
   prerelease: auto
   mode: replace
+
+# Publishes Formula/containerws.rb to izetmolla/homebrew-tap on each release.
+# Requires HOMEBREW_TAP_TOKEN (PAT with contents:write on the tap). When unset,
+# brew upload is skipped so the GitHub Release still publishes.
+brews:
+  - name: containerws
+    ids:
+      - default
+    repository:
+      owner: izetmolla
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/izetmolla/containerws"
+    description: "Container Workspace — Linux workspace with web UI, Softwares catalog, and Cloud Shell"
+    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_TOKEN "" }}true{{ else }}auto{{ end }}'
+    commit_msg_template: "Brew formula update for containerws {{ .Tag }}"
+    test: |
+      assert_match "Container Workspace", shell_output("#{bin}/containerws version")

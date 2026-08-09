@@ -1,11 +1,13 @@
 import { useState } from "react"
-import { Link, useParams, useSearchParams } from "react-router"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
+  AlertCircle,
   ArrowRightLeft,
   Box,
   Download,
   ExternalLink,
+  Info,
   Package,
   RefreshCw,
   Terminal,
@@ -18,34 +20,25 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getRequestErrorMessage, withError } from "@/lib/network"
 import { cn } from "@/lib/utils"
-import { SOFTWARES_FETCH_KEY } from "@/modules/softwares/pages/list/api"
+import { SoftwareQueuePanel } from "@/modules/softwares/components/software-queue-panel"
+import {
+  getSoftwareQueue,
+  SOFTWARES_FETCH_KEY,
+} from "@/modules/softwares/pages/list/api"
 
 import {
   BREW_FORMULA_KEY,
   BREW_FORMULAE_KEY,
   BREW_INSTALLED_KEY,
+  BREW_STATUS_KEY,
   getBrewFormula,
-  getBrewJob,
+  getBrewStatus,
   runBrewAction,
   switchPackageManager,
+  type BrewFormula,
   type BrewFormulaVersion,
 } from "./api"
 import { FormulaGlyph, HomebrewMark } from "./formula-glyph"
-
-async function waitBrewJob(id: string) {
-  for (let i = 0; i < 600; i++) {
-    await new Promise((r) => setTimeout(r, 1000))
-    const snap = await getBrewJob(id)
-    const st = snap.data?.status
-    if (st === "success" || st === "error") {
-      if (st === "error") {
-        throw new Error(snap.data?.error || "Brew action failed")
-      }
-      return snap
-    }
-  }
-  throw new Error("Timed out waiting for brew job")
-}
 
 function formatCount(n?: number) {
   if (n == null || n <= 0) return "—"
@@ -65,6 +58,36 @@ function versionKindLabel(kind: string) {
     default:
       return kind
   }
+}
+
+function notInstalledReasons(opts: {
+  formula: BrewFormula
+  brewPresent: boolean
+}): string[] {
+  const { formula, brewPresent } = opts
+  const reasons: string[] = []
+  if (!brewPresent) {
+    reasons.push(
+      "Homebrew is not installed on this host. Enable Brew in Settings → General and finish bootstrap first."
+    )
+  }
+  if (formula.ownership === "local" || formula.package_manager === "local") {
+    reasons.push(
+      "This package is owned by Softwares (local). Switch package manager to Brew before installing here, or install from Softwares."
+    )
+  }
+  if (formula.disabled) {
+    reasons.push("Homebrew marks this formula/cask as disabled.")
+  }
+  if (formula.deprecated) {
+    reasons.push("Homebrew marks this formula/cask as deprecated.")
+  }
+  if (!formula.installed && brewPresent && formula.ownership !== "local") {
+    reasons.push(
+      "No matching keg/cask is installed on this host yet — Install queues a brew job behind any Softwares installs."
+    )
+  }
+  return reasons
 }
 
 function VersionsPanel({
@@ -95,10 +118,14 @@ function VersionsPanel({
           {versions.map((row, i) => {
             const isSelf =
               row.formula === currentName &&
-              (row.kind === "stable" || row.kind === "installed" || row.kind === "head")
+              (row.kind === "stable" ||
+                row.kind === "installed" ||
+                row.kind === "head")
             const href =
               row.href ||
-              (row.formula ? `/brew/${encodeURIComponent(row.formula)}` : undefined)
+              (row.formula
+                ? `/brew/${encodeURIComponent(row.formula)}`
+                : undefined)
             return (
               <tr
                 key={`${row.formula}-${row.version}-${row.kind}-${i}`}
@@ -163,6 +190,7 @@ function MetaChip({ label, value }: { label: string; value: string }) {
 
 export default function BrewFormulaDetailPage() {
   const { name = "" } = useParams()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const kindParam = searchParams.get("kind") || undefined
   const queryClient = useQueryClient()
@@ -174,28 +202,62 @@ export default function BrewFormulaDetailPage() {
     enabled: Boolean(name),
   })
 
+  const statusQuery = useQuery({
+    queryKey: [BREW_STATUS_KEY],
+    queryFn: getBrewStatus,
+  })
+
+  const queueQuery = useQuery({
+    queryKey: [SOFTWARES_FETCH_KEY, "queue"],
+    queryFn: getSoftwareQueue,
+    refetchInterval: (q) => {
+      const items = q.state.data?.data?.items ?? []
+      const active = items.some(
+        (i) => i.status === "pending" || i.status === "running"
+      )
+      return active || Boolean(q.state.data?.data?.running) ? 1500 : 5000
+    },
+  })
+
   const formula = query.data?.data
   const isCask = formula?.kind === "cask"
   const displayName = formula?.display_name || formula?.name || name
   const ownedLocal =
     formula?.ownership === "local" || formula?.package_manager === "local"
+  const brewPresent = Boolean(statusQuery.data?.data?.binary_present)
+  const queue = queueQuery.data?.data
+  const thisQueued = (queue?.items ?? []).some(
+    (it) =>
+      (it.source === "brew" &&
+        it.brew_name?.toLowerCase() === name.toLowerCase() &&
+        (it.status === "pending" || it.status === "running")) ||
+      (it.software_id === `brew:${name.toLowerCase()}` &&
+        (it.status === "pending" || it.status === "running"))
+  )
+  const queueBusy = Boolean(queue?.pending || queue?.running)
 
   const actionMutation = useMutation({
     mutationFn: async (action: "install" | "upgrade" | "uninstall") => {
       setBusy(true)
-      const job = await runBrewAction(action, [name], formula?.kind || kindParam)
-      const id = job.data?.id
-      if (!id) return job
-      return waitBrewJob(id)
+      return runBrewAction(action, [name], formula?.kind || kindParam)
     },
-    onSuccess: (_res, action) => {
-      toast.success(`${action} ${name} completed`)
+    onSuccess: (res, action) => {
+      toast.success(res.message || `${action} queued`, {
+        action: {
+          label: "View queue",
+          onClick: () => navigate("/softwares/installing"),
+        },
+      })
+      void queryClient.invalidateQueries({
+        queryKey: [SOFTWARES_FETCH_KEY, "queue"],
+      })
       void queryClient.invalidateQueries({ queryKey: [BREW_FORMULA_KEY, name] })
       void queryClient.invalidateQueries({ queryKey: [BREW_FORMULAE_KEY] })
       void queryClient.invalidateQueries({ queryKey: [BREW_INSTALLED_KEY] })
+      navigate("/softwares/installing")
     },
     onError: (err) => {
-      toast.error(getRequestErrorMessage(err, "Brew action failed"))
+      toast.error(getRequestErrorMessage(err, "Could not queue Brew action"))
     },
     onSettled: () => setBusy(false),
   })
@@ -221,6 +283,10 @@ export default function BrewFormulaDetailPage() {
     formula?.desc?.trim() ||
     "No short description is available for this package."
 
+  const reasons = formula
+    ? notInstalledReasons({ formula, brewPresent })
+    : []
+
   return (
     <ContentLoader
       title={displayName}
@@ -243,7 +309,9 @@ export default function BrewFormulaDetailPage() {
                   {isCask ? "Homebrew cask" : "Homebrew formula"}
                 </span>
                 {formula.tap ? (
-                  <span className="truncate font-mono text-xs">{formula.tap}</span>
+                  <span className="truncate font-mono text-xs">
+                    {formula.tap}
+                  </span>
                 ) : null}
                 {formula.deprecated ? (
                   <Badge variant="destructive">Deprecated</Badge>
@@ -256,23 +324,31 @@ export default function BrewFormulaDetailPage() {
                 {!formula.installed ? (
                   <Button
                     size="sm"
-                    disabled={busy || ownedLocal}
+                    disabled={
+                      busy ||
+                      ownedLocal ||
+                      !brewPresent ||
+                      thisQueued ||
+                      formula.disabled
+                    }
                     onClick={() => actionMutation.mutate("install")}
                   >
                     <Download className="size-4" />
-                    Install
-                    {formula.version ? ` v${formula.version}` : ""}
+                    {thisQueued
+                      ? "Queued…"
+                      : `Install${formula.version ? ` v${formula.version}` : ""}`}
                   </Button>
                 ) : formula.outdated ? (
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={busy || ownedLocal}
+                    disabled={busy || ownedLocal || thisQueued}
                     onClick={() => actionMutation.mutate("upgrade")}
                   >
                     <RefreshCw className="size-4" />
-                    Update
-                    {formula.version ? ` to v${formula.version}` : ""}
+                    {thisQueued
+                      ? "Queued…"
+                      : `Update${formula.version ? ` to v${formula.version}` : ""}`}
                   </Button>
                 ) : (
                   <Badge variant="default" className="h-8 px-3 text-xs">
@@ -316,7 +392,9 @@ export default function BrewFormulaDetailPage() {
                   {formula.category ? (
                     <Badge variant="outline">{formula.category}</Badge>
                   ) : null}
-                  {ownedLocal ? <Badge variant="outline">Softwares</Badge> : null}
+                  {ownedLocal ? (
+                    <Badge variant="outline">Softwares</Badge>
+                  ) : null}
                   {formula.package_manager === "brew" ? (
                     <Badge variant="secondary">Brew-managed</Badge>
                   ) : null}
@@ -360,6 +438,35 @@ export default function BrewFormulaDetailPage() {
             </div>
           </section>
 
+          {!formula.installed ? (
+            <section className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="min-w-0 space-y-2">
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    Why this is not installed
+                  </h3>
+                  <ul className="list-disc space-y-1.5 ps-4 text-sm text-muted-foreground">
+                    {reasons.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                  <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0" />
+                    Install / Update / Uninstall are added to the Softwares
+                    install queue so they never overlap with other package jobs.
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <SoftwareQueuePanel
+            queue={queue}
+            waiting={thisQueued || (busy && queueBusy)}
+            product="Brew"
+          />
+
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Package className="size-4 text-muted-foreground" />
@@ -376,23 +483,21 @@ export default function BrewFormulaDetailPage() {
             />
           </section>
 
-          {(formula.installed ||
-            formula.can_switch_to_brew ||
-            formula.can_switch_to_local ||
-            formula.software_id ||
-            ownedLocal) ? (
+          {formula.installed ||
+          formula.can_switch_to_brew ||
+          formula.can_switch_to_local ||
+          formula.software_id ||
+          ownedLocal ? (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <Box className="size-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold tracking-tight">
-                  Manage
-                </h3>
+                <h3 className="text-sm font-semibold tracking-tight">Manage</h3>
               </div>
               <div className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
                 {formula.installed ? (
                   <Button
                     variant="outline"
-                    disabled={busy || ownedLocal}
+                    disabled={busy || ownedLocal || thisQueued}
                     onClick={() => actionMutation.mutate("uninstall")}
                   >
                     <Trash2 className="size-4" />
@@ -437,9 +542,9 @@ export default function BrewFormulaDetailPage() {
             </section>
           ) : null}
 
-          {(formula.dependencies?.length ||
-            formula.build_dependencies?.length ||
-            formula.executables?.length) ? (
+          {formula.dependencies?.length ||
+          formula.build_dependencies?.length ||
+          formula.executables?.length ? (
             <section className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2 rounded-xl border bg-card p-4">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -473,8 +578,8 @@ export default function BrewFormulaDetailPage() {
             </section>
           ) : null}
 
-          {(formula.analytics?.install_90d ||
-            formula.analytics?.install_365d) ? (
+          {formula.analytics?.install_90d ||
+          formula.analytics?.install_365d ? (
             <section className="grid gap-2 sm:grid-cols-3">
               <MetaChip
                 label="Installs · 30 days"

@@ -37,6 +37,10 @@ type queueItem struct {
 	Category     string     `json:"category,omitempty"`
 	Version      string     `json:"version,omitempty"`
 	VersionID    string     `json:"version_id,omitempty"`
+	Source       string     `json:"source,omitempty"` // "" (softwares) | "brew"
+	BrewName     string     `json:"brew_name,omitempty"`
+	BrewKind     string     `json:"brew_kind,omitempty"` // formula | cask
+	Href         string     `json:"href,omitempty"`
 	EnqueuedAt   time.Time  `json:"enqueued_at"`
 	FinishedAt   *time.Time `json:"finished_at,omitempty"`
 }
@@ -287,6 +291,7 @@ func (cc *controller) RetryQueueAPI(c fiber.Ctx) error {
 	softwareID := strings.TrimSpace(body.SoftwareID)
 	itemID := strings.TrimSpace(body.ID)
 
+	var brewRetry *queueItem
 	if itemID != "" {
 		bulkQueue.mu.Lock()
 		var found *queueItem
@@ -301,6 +306,10 @@ func (cc *controller) RetryQueueAPI(c fiber.Ctx) error {
 			if found.Action != "" {
 				action = found.Action
 			}
+			if found.Source == "brew" || found.BrewName != "" {
+				cp := *found
+				brewRetry = &cp
+			}
 			// Drop the failed row; a fresh pending item is enqueued below.
 			next := make([]*queueItem, 0, len(bulkQueue.items))
 			for _, it := range bulkQueue.items {
@@ -311,6 +320,39 @@ func (cc *controller) RetryQueueAPI(c fiber.Ctx) error {
 			bulkQueue.items = next
 		}
 		bulkQueue.mu.Unlock()
+	}
+
+	if brewRetry != nil && brewRetry.BrewName != "" {
+		item := &queueItem{
+			ID:           uuid.New().String(),
+			SoftwareID:   brewRetry.SoftwareID,
+			SoftwareName: brewRetry.SoftwareName,
+			Action:       action,
+			Status:       "pending",
+			EnqueuedAt:   time.Now(),
+			Message:      "Retry queued",
+			Source:       "brew",
+			BrewName:     brewRetry.BrewName,
+			BrewKind:     brewRetry.BrewKind,
+			Href:         brewRetry.Href,
+			Icon:         brewRetry.Icon,
+			Image:        brewRetry.Image,
+			Color:        brewRetry.Color,
+			Category:     brewRetry.Category,
+			Version:      brewRetry.Version,
+		}
+		bulkQueue.mu.Lock()
+		bulkQueue.db = db
+		bulkQueue.items = append(bulkQueue.items, item)
+		bulkQueue.mu.Unlock()
+		kickQueueWorker()
+		return r.Api(c, r.WithStatus(fiber.StatusAccepted), r.WithData(fiber.Map{
+			"data": fiber.Map{
+				"item":  item,
+				"queue": snapshotActiveQueue(db),
+			},
+			"message": fmt.Sprintf("Retry queued for %s", item.SoftwareName),
+		}))
 	}
 
 	if softwareID == "" {
@@ -544,6 +586,10 @@ func finishQueueItem(item *queueItem, status, message, jobID string) {
 }
 
 func runQueueItem(db *gorm.DB, item *queueItem) {
+	if item.Source == "brew" || strings.TrimSpace(item.BrewName) != "" {
+		runQueuedBrew(db, item)
+		return
+	}
 	switch item.Action {
 	case QueueActionUninstall:
 		runQueuedUninstall(db, item)

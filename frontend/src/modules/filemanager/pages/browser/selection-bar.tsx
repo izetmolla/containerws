@@ -1,6 +1,8 @@
 import { useEffect, useMemo, type ReactNode } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import {
+  Archive,
+  ArchiveRestore,
   Copy,
   Download,
   FileCode,
@@ -31,6 +33,8 @@ export type SelectionAction =
   | "edit"
   | "open-editor"
   | "download"
+  | "zip"
+  | "unzip"
   | "rename"
   | "move"
   | "copy"
@@ -45,6 +49,14 @@ type ActionDef = {
   icon: ReactNode
   variant?: "default" | "destructive"
   iconOnly?: boolean
+}
+
+function isZipArchive(entry: FileEntry) {
+  if (entry.type === "directory") return false
+  if (entry.mime_hint === "archive") {
+    return entry.name.toLowerCase().endsWith(".zip")
+  }
+  return entry.name.toLowerCase().endsWith(".zip")
 }
 
 function ActionButton({
@@ -121,12 +133,12 @@ export function FileSelectionBar({
 
   const onlyOne = items.length === 1
   const single = onlyOne ? items[0] : null
-  const allFiles = items.every((e) => e.type !== "directory")
-  const hasDir = items.some((e) => e.type === "directory")
-  const canEdit = onlyOne && single != null && isTextEditableFile(single)
-  const canDownload = allFiles && items.length > 0
   const folderCount = items.filter((e) => e.type === "directory").length
   const fileCount = items.length - folderCount
+  const canEdit = onlyOne && single != null && isTextEditableFile(single)
+  const canUnzip = onlyOne && single != null && isZipArchive(single)
+  const canZip = items.length > 0
+  const canDownload = items.length > 0
 
   const actions: ActionDef[] = []
 
@@ -148,7 +160,7 @@ export function FileSelectionBar({
     if (onlyOne && single) {
       actions.push({
         key: "open",
-        label: single.type === "directory" ? "Open" : "Open",
+        label: "Open",
         icon: single.type === "directory" ? <FolderOpen /> : <File />,
       })
       if (single.type !== "directory") {
@@ -165,23 +177,32 @@ export function FileSelectionBar({
           icon: <File />,
         })
       }
-      if (single.type !== "directory") {
-        actions.push({
-          key: "download",
-          label: "Download",
-          icon: <Download />,
-        })
-      }
       actions.push({
         key: "rename",
         label: "Rename",
         icon: <Pencil />,
       })
-    } else if (canDownload) {
+    }
+
+    if (canDownload) {
       actions.push({
         key: "download",
         label: "Download",
         icon: <Download />,
+      })
+    }
+    if (canZip) {
+      actions.push({
+        key: "zip",
+        label: "Zip",
+        icon: <Archive />,
+      })
+    }
+    if (canUnzip) {
+      actions.push({
+        key: "unzip",
+        label: "Unzip",
+        icon: <ArchiveRestore />,
       })
     }
 
@@ -274,7 +295,7 @@ export function FileSelectionBar({
               <ActionButton
                 key={action.key}
                 action={action}
-                disabled={busy || (action.key === "download" && hasDir)}
+                disabled={busy}
                 pending={busy}
                 onClick={() => onAction(action.key, items)}
               />
