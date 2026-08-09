@@ -26,6 +26,8 @@ pnpm start
 
 Or from the repo root: `task docs:start`
 
+Local full-text search (navbar, `Ctrl/Cmd+K`) indexes all docs and pages via `@easyops-cn/docusaurus-search-local` — no Algolia account required.
+
 ## Build
 
 ```bash
