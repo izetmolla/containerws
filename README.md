@@ -2,8 +2,6 @@
 
 Container Workspace (**ContainerWS**) is a full Linux workspace: a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor). Run it as a **native binary** on the host, or as a Docker image with systemd/SSH when available.
 
-ContainerWS dashboard — live VM / container analytics
-
 **Docs:** [containerws.izetmolla.com](https://containerws.izetmolla.com) · **Docker Hub:** [izetmolla/containerws](https://hub.docker.com/r/izetmolla/containerws) · **Author:** [Izet Molla](mailto:izetmolla@icloud.com)
 
 Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
@@ -12,7 +10,7 @@ Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 ---
 
-
+![ContainerWS dashboard — live VM / container analytics](https://raw.githubusercontent.com/izetmolla/containerws/refs/heads/main/docs/static/img/screenshots/dashboard-readme.png)
 
 ## Quick install — Homebrew (macOS / Linuxbrew)
 
