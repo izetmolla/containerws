@@ -85,6 +85,10 @@ func BootApplication() (*AppClients, error) {
 		return &app, errors.New("failed to migrate database: " + err.Error())
 	}
 
+	if err = models.EnsureModuleSidebarDefaults(app.db); err != nil {
+		return &app, errors.New("failed to seed module sidebar defaults: " + err.Error())
+	}
+
 	if _, syncErr := machine.SyncCurrentContainer(context.Background(), app.db); syncErr != nil {
 		log.Printf("container sync failed: %v", syncErr)
 	}

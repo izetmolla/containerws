@@ -34,6 +34,11 @@ readonly CWS_LAUNCHD_LABEL="com.izetmolla.containerws"
 readonly CWS_LAUNCHD_PATH="/Library/LaunchDaemons/${CWS_LAUNCHD_LABEL}.plist"
 readonly CWS_OPENRC_PATH="/etc/init.d/${CWS_SERVICE_NAME}"
 readonly CWS_FREEBSD_RC="/usr/local/etc/rc.d/${CWS_SERVICE_NAME}"
+readonly CWS_PIDFILE="/var/run/containerws.pid"
+readonly CWS_DAEMON_WRAPPER="${CWS_BIN_DIR}/cws-daemon.sh"
+readonly CWS_CRON_FILE="/etc/cron.d/containerws"
+readonly CWS_LOG_OUT="/var/log/containerws/cws.out.log"
+readonly CWS_LOG_ERR="/var/log/containerws/cws.err.log"
 
 CWS_REPO="${CWS_REPO:-$CWS_REPO_DEFAULT}"
 CWS_VERSION="${CWS_VERSION:-}"
@@ -88,7 +93,7 @@ Install layout:
   ${CWS_ALIAS_PATH}  →  ${CWS_BIN_NAME}
   ${CWS_CONFIG_ROOT}/{database,ssl,vnc-sessions}
   ${CWS_ENV_FILE}
-  systemd / launchd / OpenRC / FreeBSD rc.d unit → ${CWS_CLI_NAME} --start
+  systemd / launchd / OpenRC / FreeBSD / direct → ${CWS_CLI_NAME} --start
 EOF
 }
 
@@ -202,8 +207,24 @@ detect_platform() {
   fi
 }
 
+# True when systemd is actually PID 1 / usable (not merely "systemctl" on PATH).
+systemd_usable() {
+  command -v systemctl >/dev/null 2>&1 || return 1
+  [[ -d /run/systemd/system ]] || return 1
+  local state
+  state="$(systemctl is-system-running 2>/dev/null || true)"
+  case "$state" in
+    running|degraded|maintenance|initializing|starting) return 0 ;;
+  esac
+  # Some minimal environments report "offline" / "unknown" even with a real PID 1 systemd.
+  if [[ "$(ps -p 1 -o comm= 2>/dev/null || true)" == "systemd" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 detect_init() {
-  INIT_SYSTEM="none"
+  INIT_SYSTEM="direct"
   if [[ "$OS" == "darwin" ]]; then
     INIT_SYSTEM="launchd"
     return 0
@@ -212,18 +233,33 @@ detect_init() {
     INIT_SYSTEM="freebsd-rc"
     return 0
   fi
-  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+  if systemd_usable; then
     INIT_SYSTEM="systemd"
     return 0
   fi
-  if command -v rc-update >/dev/null 2>&1 && [[ -d /etc/init.d ]]; then
+  # OpenRC only when it is actually managing the system (not merely packages present).
+  if command -v rc-status >/dev/null 2>&1 && rc-status >/dev/null 2>&1; then
     INIT_SYSTEM="openrc"
     return 0
   fi
-  if [[ -d /etc/init.d ]] && command -v update-rc.d >/dev/null 2>&1; then
-    INIT_SYSTEM="sysv"
+  if command -v rc-update >/dev/null 2>&1 && [[ -d /run/openrc || -d /etc/runlevels ]]; then
+    INIT_SYSTEM="openrc"
     return 0
   fi
+  # Classic SysV only when PID 1 looks like sysvinit (avoid Docker images that ship
+  # update-rc.d but cannot supervise services).
+  local pid1
+  pid1="$(ps -p 1 -o comm= 2>/dev/null || true)"
+  if [[ -d /etc/init.d ]] && command -v update-rc.d >/dev/null 2>&1; then
+    case "$pid1" in
+      init|sysvinit|busybox)
+        INIT_SYSTEM="sysv"
+        return 0
+        ;;
+    esac
+  fi
+  # Containers / WSL / hosts without a usable init — run cws --start ourselves.
+  INIT_SYSTEM="direct"
 }
 
 # ---------------------------------------------------------------------------
@@ -398,9 +434,9 @@ install_binary_from_src() {
   [[ -n "$CWS_BINARY_SRC" && -f "$CWS_BINARY_SRC" ]] || die "binary source missing"
   info "Installing binary to ${CWS_BIN_PATH}"
   install -m 0755 "$CWS_BINARY_SRC" "$CWS_BIN_PATH"
-  # CLI shims on PATH → real binary under /usr/local/lib/containerws/bin
-  ln -sfn "../lib/containerws/bin/${CWS_BIN_NAME}" "$CWS_CLI_PATH"
-  ln -sfn "../lib/containerws/bin/${CWS_BIN_NAME}" "$CWS_ALIAS_PATH"
+  # Absolute symlinks so PATH shims stay valid regardless of cwd.
+  ln -sfn "$CWS_BIN_PATH" "$CWS_CLI_PATH"
+  ln -sfn "$CWS_BIN_PATH" "$CWS_ALIAS_PATH"
   ok "CLI linked: ${CWS_CLI_PATH} and ${CWS_ALIAS_PATH}"
   if [[ -x "$CWS_BIN_PATH" ]]; then
     "$CWS_BIN_PATH" version 2>/dev/null || true
@@ -423,7 +459,7 @@ Type=simple
 EnvironmentFile=-${CWS_ENV_FILE}
 Environment=ENV=production
 WorkingDirectory=/
-ExecStart=${CWS_CLI_PATH} --start
+ExecStart=${CWS_BIN_PATH} --start
 Restart=on-failure
 RestartSec=3
 KillMode=mixed
@@ -450,7 +486,7 @@ write_launchd_plist() {
   <string>${CWS_LAUNCHD_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${CWS_CLI_PATH}</string>
+    <string>${CWS_BIN_PATH}</string>
     <string>--start</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -465,9 +501,9 @@ write_launchd_plist() {
   <key>WorkingDirectory</key>
   <string>/</string>
   <key>StandardOutPath</key>
-  <string>/var/log/containerws/cws.out.log</string>
+  <string>${CWS_LOG_OUT}</string>
   <key>StandardErrorPath</key>
-  <string>/var/log/containerws/cws.err.log</string>
+  <string>${CWS_LOG_ERR}</string>
 </dict>
 </plist>
 EOF
@@ -478,12 +514,12 @@ write_openrc_service() {
   cat >"$CWS_OPENRC_PATH" <<EOF
 #!/sbin/openrc-run
 description="Container Workspace (cws)"
-command="${CWS_CLI_PATH}"
+command="${CWS_BIN_PATH}"
 command_args="--start"
 command_background=yes
 pidfile="/run/\${RC_SVCNAME}.pid"
-output_log="/var/log/containerws/cws.out.log"
-error_log="/var/log/containerws/cws.err.log"
+output_log="${CWS_LOG_OUT}"
+error_log="${CWS_LOG_ERR}"
 
 depend() {
   need net
@@ -515,9 +551,9 @@ write_freebsd_rc() {
 
 name="${CWS_SERVICE_NAME}"
 rcvar="\${name}_enable"
-command="${CWS_CLI_PATH}"
+command="${CWS_BIN_PATH}"
 command_args="--start"
-pidfile="/var/run/\${name}.pid"
+pidfile="${CWS_PIDFILE}"
 start_cmd="containerws_start"
 stop_cmd="containerws_stop"
 status_cmd="containerws_status"
@@ -554,6 +590,178 @@ containerws_status() {
 run_rc_command "\$1"
 EOF
   chmod 755 "$CWS_FREEBSD_RC"
+}
+
+# ---------------------------------------------------------------------------
+# Direct daemon (no systemd / OpenRC) — used in Docker, WSL, bare containers
+# ---------------------------------------------------------------------------
+write_direct_daemon_wrapper() {
+  mkdir -p "$CWS_BIN_DIR" /var/log/containerws
+  cat >"$CWS_DAEMON_WRAPPER" <<EOF
+#!/usr/bin/env bash
+# Container Workspace direct daemon helper (cws --start)
+set -euo pipefail
+BIN="${CWS_BIN_PATH}"
+PIDFILE="${CWS_PIDFILE}"
+ENV_FILE="${CWS_ENV_FILE}"
+LOG_OUT="${CWS_LOG_OUT}"
+LOG_ERR="${CWS_LOG_ERR}"
+
+load_env() {
+  export ENV="\${ENV:-production}"
+  if [[ -f "\$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "\$ENV_FILE"
+    set +a
+  fi
+}
+
+is_running() {
+  [[ -f "\$PIDFILE" ]] || return 1
+  local pid
+  pid="\$(tr -d '[:space:]' <"\$PIDFILE" 2>/dev/null || true)"
+  [[ -n "\$pid" ]] || return 1
+  kill -0 "\$pid" 2>/dev/null || return 1
+  return 0
+}
+
+cmd_start() {
+  if is_running; then
+    echo "containerws already running (pid \$(cat "\$PIDFILE"))"
+    return 0
+  fi
+  load_env
+  mkdir -p "\$(dirname "\$PIDFILE")" "\$(dirname "\$LOG_OUT")"
+  # Drop a stale pidfile
+  rm -f "\$PIDFILE"
+  nohup "\$BIN" --start >>"\$LOG_OUT" 2>>"\$LOG_ERR" &
+  local pid=\$!
+  echo "\$pid" >"\$PIDFILE"
+  # Give the server a moment to bind or crash
+  sleep 1
+  if ! kill -0 "\$pid" 2>/dev/null; then
+    echo "error: cws --start exited immediately; see \$LOG_ERR" >&2
+    rm -f "\$PIDFILE"
+    return 1
+  fi
+  echo "started containerws (pid \$pid)"
+}
+
+cmd_stop() {
+  if ! [[ -f "\$PIDFILE" ]]; then
+    # Best-effort: kill stray cws --start for our binary path
+    pkill -f "\$BIN --start" 2>/dev/null || true
+    echo "containerws not running"
+    return 0
+  fi
+  local pid
+  pid="\$(tr -d '[:space:]' <"\$PIDFILE")"
+  if [[ -n "\$pid" ]] && kill -0 "\$pid" 2>/dev/null; then
+    kill "\$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "\$pid" 2>/dev/null || break
+      sleep 0.5
+    done
+    kill -9 "\$pid" 2>/dev/null || true
+  fi
+  rm -f "\$PIDFILE"
+  echo "stopped containerws"
+}
+
+cmd_status() {
+  if is_running; then
+    echo "containerws is running (pid \$(cat "\$PIDFILE"))"
+    return 0
+  fi
+  echo "containerws is not running"
+  return 1
+}
+
+cmd_restart() {
+  cmd_stop || true
+  cmd_start
+}
+
+case "\${1:-}" in
+  start) cmd_start ;;
+  stop) cmd_stop ;;
+  restart) cmd_restart ;;
+  status) cmd_status ;;
+  *)
+    echo "usage: \$0 {start|stop|restart|status}" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod 755 "$CWS_DAEMON_WRAPPER"
+}
+
+install_direct_cron() {
+  # Persist across reboot when possible (skipped if no cron.d).
+  if [[ ! -d /etc/cron.d ]]; then
+    return 0
+  fi
+  cat >"$CWS_CRON_FILE" <<EOF
+# Restart Container Workspace after reboot (direct daemon mode)
+@reboot root ${CWS_DAEMON_WRAPPER} start >/dev/null 2>&1
+EOF
+  chmod 644 "$CWS_CRON_FILE"
+}
+
+daemon_is_running() {
+  case "$INIT_SYSTEM" in
+    systemd)
+      systemctl is-active --quiet "$CWS_SERVICE_NAME" 2>/dev/null
+      ;;
+    launchd)
+      launchctl print "system/${CWS_LAUNCHD_LABEL}" 2>/dev/null | grep -q 'state = running'
+      ;;
+    openrc)
+      rc-service "$CWS_SERVICE_NAME" status >/dev/null 2>&1
+      ;;
+    freebsd-rc|sysv)
+      service "$CWS_SERVICE_NAME" status >/dev/null 2>&1
+      ;;
+    direct)
+      [[ -x "$CWS_DAEMON_WRAPPER" ]] && "$CWS_DAEMON_WRAPPER" status >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+verify_daemon_started() {
+  [[ "$CWS_NO_START" == "1" ]] && return 0
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if daemon_is_running; then
+      ok "Daemon is running (${CWS_CLI_NAME} --start)"
+      return 0
+    fi
+    # Also accept a live listener on :9000 (covers briefly-racy pid checks).
+    if command -v curl >/dev/null 2>&1; then
+      if curl -fsS -o /dev/null --connect-timeout 1 "http://127.0.0.1:9000/" 2>/dev/null \
+        || curl -fsS -o /dev/null --connect-timeout 1 -k "https://127.0.0.1:9000/" 2>/dev/null; then
+        ok "Daemon is listening on :9000"
+        return 0
+      fi
+    fi
+    sleep 0.5
+  done
+  warn "Daemon did not stay up after install."
+  case "$INIT_SYSTEM" in
+    systemd)
+      systemctl status "$CWS_SERVICE_NAME" --no-pager -l 2>&1 | tail -n 30 || true
+      journalctl -u "$CWS_SERVICE_NAME" -n 40 --no-pager 2>&1 | tail -n 40 || true
+      ;;
+    direct)
+      [[ -f "$CWS_LOG_ERR" ]] && tail -n 40 "$CWS_LOG_ERR" || true
+      [[ -f "$CWS_LOG_OUT" ]] && tail -n 20 "$CWS_LOG_OUT" || true
+      ;;
+  esac
+  die "failed to start ${CWS_CLI_NAME} --start (init=${INIT_SYSTEM})"
 }
 
 install_daemon() {
@@ -604,7 +812,6 @@ install_daemon() {
       fi
       ;;
     sysv)
-      # Minimal SysV wrapper reusing OpenRC-style script path under /etc/init.d
       write_openrc_service
       update-rc.d "$CWS_SERVICE_NAME" defaults || true
       if [[ "$CWS_NO_START" != "1" ]]; then
@@ -612,14 +819,22 @@ install_daemon() {
       fi
       ok "SysV init script installed at ${CWS_OPENRC_PATH}"
       ;;
+    direct)
+      write_direct_daemon_wrapper
+      install_direct_cron
+      # Prefer our wrapper even if a leftover systemd unit exists but systemd is down.
+      if [[ "$CWS_NO_START" != "1" ]]; then
+        "$CWS_DAEMON_WRAPPER" restart
+        ok "Started ${CWS_CLI_NAME} --start in direct daemon mode (pidfile ${CWS_PIDFILE})"
+      else
+        ok "Direct daemon helper installed at ${CWS_DAEMON_WRAPPER} (not started)"
+      fi
+      ;;
     *)
-      warn "No supported init system detected."
-      cat <<EOF
-Start manually:
-  ENV=production ${CWS_CLI_PATH} --start
-EOF
+      die "internal error: unknown init system ${INIT_SYSTEM}"
       ;;
   esac
+  verify_daemon_started
 }
 
 # ---------------------------------------------------------------------------
@@ -651,9 +866,20 @@ do_uninstall() {
       update-rc.d -f "$CWS_SERVICE_NAME" remove 2>/dev/null || true
       rm -f "$CWS_OPENRC_PATH"
       ;;
+    direct)
+      if [[ -x "$CWS_DAEMON_WRAPPER" ]]; then
+        "$CWS_DAEMON_WRAPPER" stop 2>/dev/null || true
+      fi
+      rm -f "$CWS_CRON_FILE" "$CWS_PIDFILE"
+      ;;
   esac
+  # Always try to stop a leftover direct daemon.
+  if [[ -x "$CWS_DAEMON_WRAPPER" ]]; then
+    "$CWS_DAEMON_WRAPPER" stop 2>/dev/null || true
+  fi
+  pkill -f "${CWS_BIN_PATH} --start" 2>/dev/null || true
 
-  rm -f "$CWS_CLI_PATH" "$CWS_ALIAS_PATH"
+  rm -f "$CWS_CLI_PATH" "$CWS_ALIAS_PATH" "$CWS_CRON_FILE" "$CWS_PIDFILE"
   rm -rf "$CWS_INSTALL_DIR"
   # Keep /config/containerws data and /etc/containerws by default.
   ok "Binaries and daemon removed. Data kept in ${CWS_CONFIG_ROOT} and ${CWS_ETC_DIR}"
@@ -695,6 +921,15 @@ EOF
     freebsd-rc)
       cat <<EOF
   Status:   service ${CWS_SERVICE_NAME} status
+EOF
+      ;;
+    direct|sysv)
+      cat <<EOF
+  Status:   ${CWS_DAEMON_WRAPPER} status
+  Start:    ${CWS_DAEMON_WRAPPER} start
+  Stop:     ${CWS_DAEMON_WRAPPER} stop
+  Logs:     ${CWS_LOG_OUT}
+            ${CWS_LOG_ERR}
 EOF
       ;;
   esac
