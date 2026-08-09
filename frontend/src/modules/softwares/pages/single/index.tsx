@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { parseAsStringLiteral, useQueryState } from "nuqs"
 import { toast } from "sonner"
 
 import ContentLoader from "@/components/content-loader"
 import { withError, getRequestErrorMessage } from "@/lib/network"
+import { switchPackageManager } from "@/modules/brew/pages/api"
 
 import { SoftwareDetail } from "../../components/software-detail"
 import {
@@ -118,9 +119,10 @@ export default function SoftwareSinglePage() {
   const osMissing = Boolean(
     data?.data?.os_missing || installedVersion?.os_missing
   )
-  const canInstall = Boolean(latest?.install_script)
+  const canInstall = Boolean(latest?.install_script) && data?.data?.package_manager !== "brew"
   const canUninstall = Boolean(
     !uninstalled &&
+      data?.data?.package_manager !== "brew" &&
       (data?.data?.can_uninstall ||
         installedVersion?.can_uninstall ||
         installedVersion?.uninstall_script ||
@@ -128,10 +130,31 @@ export default function SoftwareSinglePage() {
   )
   const canControl = Boolean(
     !uninstalled &&
+      data?.data?.package_manager !== "brew" &&
       (data?.data?.can_control ||
         (software?.can_control && software?.service_units?.length))
   )
   const serviceStatus = data?.data?.service_status ?? null
+  const packageManager = data?.data?.package_manager
+  const canSwitchToBrew = Boolean(data?.data?.can_switch_to_brew)
+  const canSwitchToLocal = Boolean(data?.data?.can_switch_to_local)
+
+  const switchMutation = useMutation({
+    mutationFn: (target: "local" | "brew") => {
+      if (!id) return Promise.reject(new Error("Missing software id"))
+      return switchPackageManager(id, target)
+    },
+    onSuccess: (res) => {
+      toast.success(res.message || "Switched package manager")
+      void queryClient.invalidateQueries({
+        queryKey: [SOFTWARES_FETCH_KEY, "single", id],
+      })
+      void queryClient.invalidateQueries({ queryKey: [SOFTWARES_FETCH_KEY] })
+    },
+    onError: (err) => {
+      toast.error(getRequestErrorMessage(err, "Switch failed"))
+    },
+  })
 
   const handleServiceStatusChange = (status: ServiceStatus) => {
     queryClient.setQueryData<SoftwareSingleResponse>(
@@ -446,10 +469,15 @@ export default function SoftwareSinglePage() {
           canUninstall={canUninstall}
           canControl={canControl}
           serviceStatus={serviceStatus}
+          packageManager={packageManager}
+          canSwitchToBrew={canSwitchToBrew}
+          canSwitchToLocal={canSwitchToLocal}
+          switching={switchMutation.isPending}
           installing={installing}
           uninstalling={uninstalling}
           onInstall={() => void startInstall()}
           onUninstall={() => void startUninstall()}
+          onSwitchManager={(target) => switchMutation.mutate(target)}
           onServiceStatusChange={handleServiceStatusChange}
           initialTab={canControl ? initialTab : "overview"}
           terminal={{

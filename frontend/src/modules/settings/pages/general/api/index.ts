@@ -24,15 +24,32 @@ export type ProxymanagerModuleStatus = {
   last_applied_at?: string
 }
 
+export type BrewModuleStatus = {
+  binary_present: boolean
+  brew_path?: string
+  prefix?: string
+  installing?: boolean
+  bootstrap?: {
+    running?: boolean
+    finished?: boolean
+    success?: boolean
+    error?: string
+    log?: string
+  }
+}
+
 export type GeneralSettings = {
   workspace_name: string
   workspace_description: string
   docker_enabled: boolean
   kubernetes_enabled: boolean
   proxymanager_enabled: boolean
+  brew_enabled: boolean
+  localhost_auto_login: boolean
   docker: DockerModuleStatus
   kubernetes: KubernetesModuleStatus
   proxymanager: ProxymanagerModuleStatus
+  brew: BrewModuleStatus
 }
 
 export type GeneralSettingsResponse = {
@@ -66,6 +83,8 @@ export async function updateModuleSettings(input: {
   docker_enabled?: boolean
   kubernetes_enabled?: boolean
   proxymanager_enabled?: boolean
+  brew_enabled?: boolean
+  localhost_auto_login?: boolean
 }) {
   return ApiService.fetchData<GeneralSettingsResponse>({
     url: `${SETTINGS_GENERAL_BASE}/modules`,

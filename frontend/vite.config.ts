@@ -10,7 +10,7 @@ export default defineConfig(async ({ command }) => {
     plugins: [react(), tailwindcss(), replaceTags(command)],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": path.resolve(import.meta.dirname, "./src"),
       },
     },
     base: process.env.NODE_ENV === "production" ? "/static/" : "/",
@@ -102,7 +102,7 @@ function replaceTags(command: string): Plugin {
     closeBundle() {
       if (command !== "build") return
 
-      const distIndex = path.resolve(__dirname, "static/index.html")
+      const distIndex = path.resolve(import.meta.dirname, "static/index.html")
       if (!fs.existsSync(distIndex)) return
 
       let patched = fs.readFileSync(distIndex, "utf8")

@@ -190,6 +190,10 @@ func Reconcile(ctx context.Context, db *gorm.DB) error {
 			// User intentionally removed this software — do not auto-reinstall.
 			continue
 		}
+		if models.NormalizePackageManager(row.PackageManager) == models.PackageManagerBrew {
+			// Owned by Homebrew — softwaresync must not fight brew's prefix.
+			continue
+		}
 		if row.Software == nil || !row.Software.IsActive {
 			continue
 		}

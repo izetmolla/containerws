@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/izetmolla/containerws/models"
+	"github.com/izetmolla/containerws/modules/brew"
 	softwarespackage "github.com/izetmolla/containerws/modules/softwares/package"
 	"github.com/izetmolla/containerws/modules/softwares/service"
 	"github.com/izetmolla/containerws/packages/softwarepkg"
@@ -138,22 +139,44 @@ func (cc *controller) GetSoftwareSingleAPI(c fiber.Ctx) error {
 
 	fromRemote := strings.TrimSpace(sw.RegistryPackageID) != "" || strings.TrimSpace(sw.RegistrySlug) != ""
 
+	pm := ""
+	if isInstalled {
+		pm = models.GetSoftwarePackageManager(db, sw.ID)
+	}
+	token := brew.BrewTokenForSoftware(&sw)
+	brewOK := token != "" && !strings.Contains(token, " ") && brew.FormulaExists(token)
+	canSwitchToBrew := brewOK && isInstalled && pm == models.PackageManagerLocal
+	canSwitchToLocal := brewOK && isInstalled && pm == models.PackageManagerBrew &&
+		latest != nil && strings.TrimSpace(latest.InstallScript) != ""
+
+	if pm == models.PackageManagerBrew {
+		canUninstall = false
+		canControl = false
+		hasUpdate = false
+		serviceStatus = nil
+	}
+
 	return r.Api(c, r.WithContext(ctx), r.WithStatus(fiber.StatusOK), r.WithData(fiber.Map{
 		"data": fiber.Map{
-			"software":           sw,
-			"versions":           versions,
-			"latest_version":     latest,
-			"installed_version":  installed,
-			"is_installed":       isInstalled,
-			"uninstalled":        userUninstalled,
-			"has_update":         hasUpdate,
-			"os_missing":         osMissing,
-			"can_uninstall":      canUninstall,
-			"can_control":        canControl,
-			"service_status":     serviceStatus,
-			"from_remote":        fromRemote,
-			"synced_from_remote": synced,
-			"sync_error":         syncErr,
+			"software":            sw,
+			"versions":            versions,
+			"latest_version":      latest,
+			"installed_version":   installed,
+			"is_installed":        isInstalled,
+			"uninstalled":         userUninstalled,
+			"has_update":          hasUpdate,
+			"os_missing":          osMissing,
+			"can_uninstall":       canUninstall,
+			"can_control":         canControl,
+			"service_status":      serviceStatus,
+			"from_remote":         fromRemote,
+			"synced_from_remote":  synced,
+			"sync_error":          syncErr,
+			"package_manager":     pm,
+			"brew_available":      brewOK,
+			"can_switch_to_brew":  canSwitchToBrew,
+			"can_switch_to_local": canSwitchToLocal,
+			"brew_token":          token,
 		},
 	}))
 }

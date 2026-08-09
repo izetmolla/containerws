@@ -29,11 +29,19 @@ func BuiltIn() []models.Navigation {
 					IsActive: true,
 				},
 				{
+					ID:       "builtin-brew",
+					Title:    "Brew Manager",
+					To:       "/brew",
+					Icon:     "CupSoda",
+					OrderNr:  3,
+					IsActive: true,
+				},
+				{
 					ID:       "builtin-users",
 					Title:    "Users",
 					To:       "/users",
 					Icon:     "Users",
-					OrderNr:  3,
+					OrderNr:  4,
 					IsActive: true,
 				},
 				{
@@ -41,7 +49,7 @@ func BuiltIn() []models.Navigation {
 					Title:    "VS Code",
 					To:       "/vscode",
 					Icon:     "Code",
-					OrderNr:  4,
+					OrderNr:  5,
 					IsActive: true,
 				},
 				{
@@ -49,7 +57,7 @@ func BuiltIn() []models.Navigation {
 					Title:    "Files",
 					To:       "/filemanager",
 					Icon:     "FolderOpen",
-					OrderNr:  5,
+					OrderNr:  6,
 					IsActive: true,
 				},
 				{
@@ -57,7 +65,7 @@ func BuiltIn() []models.Navigation {
 					Title:    "Kubernetes",
 					To:       "/kubernetes",
 					Icon:     "Hexagon",
-					OrderNr:  6,
+					OrderNr:  7,
 					IsActive: true,
 					Children: []models.Navigation{
 						{
@@ -248,7 +256,7 @@ func BuiltIn() []models.Navigation {
 					Title:    "Docker",
 					To:       "/docker",
 					Icon:     "Box",
-					OrderNr:  7,
+					OrderNr:  8,
 					IsActive: true,
 					Children: []models.Navigation{
 						{
@@ -314,7 +322,7 @@ func BuiltIn() []models.Navigation {
 					Title:    "Proxy Manager",
 					To:       "/proxymanager",
 					Icon:     "Globe",
-					OrderNr:  8,
+					OrderNr:  9,
 					IsActive: true,
 					Children: []models.Navigation{
 						{
@@ -363,7 +371,7 @@ func BuiltIn() []models.Navigation {
 					ID:       "builtin-settings",
 					Title:    "Settings",
 					Icon:     "Settings",
-					OrderNr:  9,
+					OrderNr:  10,
 					IsActive: true,
 					Children: []models.Navigation{
 						{

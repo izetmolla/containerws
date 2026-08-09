@@ -95,6 +95,16 @@ export type SoftwareListItem = Software & {
   source?: "local" | "remote" | "both" | string
   is_remote?: boolean
   package_id?: string
+  package_manager?: "local" | "brew" | string
+  brew_available?: boolean
+  can_switch_to_brew?: boolean
+  can_switch_to_local?: boolean
+}
+
+export function isBrewManaged(item: {
+  package_manager?: string | null
+}): boolean {
+  return item.package_manager === "brew"
 }
 
 export type SoftwaresListParams = {

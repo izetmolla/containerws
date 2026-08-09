@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/izetmolla/containerws/models"
+	"github.com/izetmolla/containerws/modules/brew"
 	"github.com/izetmolla/containerws/modules/softwares/install"
 	"github.com/izetmolla/containerws/modules/softwares/service"
 	"github.com/izetmolla/containerws/packages/softwarepkg"
@@ -35,6 +36,13 @@ type softwareListItem struct {
 	IsRemote bool `json:"is_remote"`
 	// PackageID is the software_packages row used for remote-only items (for import).
 	PackageID string `json:"package_id,omitempty"`
+	// PackageManager is local | brew when installed (empty when not installed).
+	PackageManager string `json:"package_manager,omitempty"`
+	// BrewAvailable is true when an exact Homebrew formula token matches this software.
+	BrewAvailable bool `json:"brew_available"`
+	// CanSwitchToBrew / CanSwitchToLocal for Softwares ↔ Brew ownership switch.
+	CanSwitchToBrew  bool `json:"can_switch_to_brew"`
+	CanSwitchToLocal bool `json:"can_switch_to_local"`
 }
 
 type categoryFacet struct {
@@ -106,11 +114,16 @@ func (cc *controller) GetSoftwaresListAPI(c fiber.Ctx) error {
 	if err != nil {
 		return r.Api(c, r.WithError(err), r.WithStatus(fiber.StatusInternalServerError))
 	}
+	pmMap, err := models.PackageManagerMap(db)
+	if err != nil {
+		return r.Api(c, r.WithError(err), r.WithStatus(fiber.StatusInternalServerError))
+	}
 
 	out := make([]softwareListItem, 0, len(rows))
 	localByName := map[string]int{} // lower name → index in out
 	for _, sw := range rows {
 		item, compatible := enrichSoftwareForHost(c, db, sw, installedMap, uninstalledMap, host)
+		applyPackageManagerFields(&item, sw, pmMap)
 		// Hide catalog entries that have no installable version for this machine,
 		// unless already installed or intentionally uninstalled (so the user can still manage).
 		if !compatible && !item.IsInstalled && !item.Uninstalled {
@@ -439,6 +452,34 @@ func enrichSoftwareForHost(
 	}
 	item.CanControl = service.CanControl(sw)
 	return item, compatible
+}
+
+func applyPackageManagerFields(item *softwareListItem, sw models.Software, pmMap map[string]string) {
+	if item == nil {
+		return
+	}
+	token := brew.BrewTokenForSoftware(&sw)
+	brewOK := token != "" && !strings.Contains(token, " ") && brew.FormulaExists(token)
+	item.BrewAvailable = brewOK
+
+	pm := ""
+	if item.IsInstalled {
+		pm = models.NormalizePackageManager(pmMap[sw.ID])
+		item.PackageManager = pm
+	}
+
+	// Brew-owned: Softwares must not manage install/update/uninstall/service.
+	if pm == models.PackageManagerBrew {
+		item.CanUninstall = false
+		item.CanControl = false
+		item.HasUpdate = false
+		item.CanSwitchToLocal = brewOK && item.LatestVersion != nil && strings.TrimSpace(item.LatestVersion.InstallScript) != ""
+		item.CanSwitchToBrew = false
+		return
+	}
+
+	item.CanSwitchToBrew = brewOK && item.IsInstalled && pm == models.PackageManagerLocal
+	item.CanSwitchToLocal = false
 }
 
 // filterRemotesForHost keeps registry packages that have an install.json for this host.

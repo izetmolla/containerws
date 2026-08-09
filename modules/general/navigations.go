@@ -18,6 +18,7 @@ func (cc *Controller) GetNavigationData(ctx context.Context, containerID string,
 	dockerOn := models.ModuleEnabled(db, models.OptionDockerModuleEnabled)
 	k8sOn := models.ModuleEnabled(db, models.OptionKubernetesModuleEnabled)
 	proxyOn := models.ModuleEnabled(db, models.OptionProxymanagerModuleEnabled)
+	brewOn := models.BrewModuleEnabled(db)
 
 	for _, group := range navigations.BuiltIn() {
 		if group.ID == "builtin-docker" && !dockerOn {
@@ -27,6 +28,9 @@ func (cc *Controller) GetNavigationData(ctx context.Context, containerID string,
 			continue
 		}
 		if group.ID == "builtin-proxymanager" && !proxyOn {
+			continue
+		}
+		if group.ID == "builtin-brew" && !brewOn {
 			continue
 		}
 		// Nested under Workspace children.
@@ -40,6 +44,9 @@ func (cc *Controller) GetNavigationData(ctx context.Context, containerID string,
 					continue
 				}
 				if child.ID == "builtin-proxymanager" && !proxyOn {
+					continue
+				}
+				if child.ID == "builtin-brew" && !brewOn {
 					continue
 				}
 				kids = append(kids, child)

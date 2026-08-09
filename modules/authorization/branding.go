@@ -34,11 +34,13 @@ func (cc *controller) BrandingAPI(c fiber.Ctx) error {
 
 	return r.Api(c, r.WithStatus(fiber.StatusOK), r.WithData(fiber.Map{
 		"data": fiber.Map{
-			"workspace_name": workspaceName,
-			"os_name":        osName,
-			"os_label":       osLabel,
-			"os_version":     snap.DistroVersion,
-			"hostname":       snap.Hostname,
+			"workspace_name":        workspaceName,
+			"os_name":               osName,
+			"os_label":              osLabel,
+			"os_version":            snap.DistroVersion,
+			"hostname":              snap.Hostname,
+			"localhost_auto_login":  models.LocalhostAutoLoginEnabled(db),
+			"localhost_eligible":    c.IsFromLocal() && models.LocalhostAutoLoginEnabled(db),
 		},
 	}))
 }

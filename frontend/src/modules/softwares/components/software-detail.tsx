@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link } from "react-router"
 import {
   ArrowLeft,
+  ArrowRightLeft,
   ArrowUpCircle,
   CheckCircle2,
   Download,
@@ -22,6 +23,7 @@ import {
   type Software,
   type SoftwareVersion,
 } from "../pages/list/api"
+import { ManagerBadge } from "./manager-badge"
 import { SoftwareGlyph } from "./software-glyph"
 import { StatusPill } from "./status-pill"
 import { SoftwareServicePanel } from "./software-service-panel"
@@ -44,10 +46,15 @@ export function SoftwareDetail({
   canUninstall = false,
   canControl = false,
   serviceStatus = null,
+  packageManager,
+  canSwitchToBrew = false,
+  canSwitchToLocal = false,
+  switching = false,
   installing,
   uninstalling = false,
   onInstall,
   onUninstall,
+  onSwitchManager,
   onServiceStatusChange,
   terminal,
   initialTab = "overview",
@@ -64,10 +71,15 @@ export function SoftwareDetail({
   canUninstall?: boolean
   canControl?: boolean
   serviceStatus?: ServiceStatus | null
+  packageManager?: string
+  canSwitchToBrew?: boolean
+  canSwitchToLocal?: boolean
+  switching?: boolean
   installing: boolean
   uninstalling?: boolean
   onInstall: () => void
   onUninstall?: () => void
+  onSwitchManager?: (target: "local" | "brew") => void
   onServiceStatusChange?: (status: ServiceStatus) => void
   terminal: {
     open: boolean
@@ -83,6 +95,7 @@ export function SoftwareDetail({
   }
   initialTab?: string
 }) {
+  const brewOwned = packageManager === "brew"
   const [tab, setTab] = useState(initialTab)
   const accent = software.color || "var(--primary)"
   const status = softwareInstallStatus(
@@ -105,6 +118,7 @@ export function SoftwareDetail({
     return `Install v${latest.version}`
   })()
 
+  const localDisabled = brewOwned || installing || uninstalling || switching
   return (
     <div className="">
       <Button variant="ghost" size="sm" className="mb-4 -ml-2" asChild>
@@ -139,6 +153,9 @@ export function SoftwareDetail({
               {software.category ? (
                 <Badge variant="outline">{software.category}</Badge>
               ) : null}
+              {isInstalled ? (
+                <ManagerBadge packageManager={packageManager || "local"} />
+              ) : null}
               <StatusPill status={status} />
             </div>
             {software.sub_category ? (
@@ -163,10 +180,10 @@ export function SoftwareDetail({
             <>
               <Button
                 size="lg"
-                disabled={!canInstall || installing}
+                disabled={!canInstall || localDisabled}
                 onClick={onInstall}
                 style={
-                  canInstall
+                  canInstall && !brewOwned
                     ? { backgroundColor: accent, borderColor: accent }
                     : undefined
                 }
@@ -192,7 +209,7 @@ export function SoftwareDetail({
               <Button
                 size="lg"
                 className="bg-amber-500 text-black hover:bg-amber-400"
-                disabled={!canInstall || installing}
+                disabled={!canInstall || localDisabled}
                 onClick={onInstall}
               >
                 {installing ? (
@@ -208,7 +225,7 @@ export function SoftwareDetail({
             <Button
               variant="secondary"
               size="lg"
-              disabled={!canInstall || installing || uninstalling}
+              disabled={!canInstall || localDisabled}
               onClick={onInstall}
             >
               {installing ? (
@@ -225,12 +242,14 @@ export function SoftwareDetail({
               variant="outline"
               size="lg"
               className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              disabled={!canUninstall || installing || uninstalling}
+              disabled={!canUninstall || localDisabled || brewOwned}
               onClick={() => onUninstall?.()}
               title={
-                canUninstall
-                  ? "Run full uninstall script and clean this software"
-                  : "No uninstall script configured for this software"
+                brewOwned
+                  ? "Managed by Brew — switch to Softwares or uninstall from Brew Manager"
+                  : canUninstall
+                    ? "Run full uninstall script and clean this software"
+                    : "No uninstall script configured for this software"
               }
             >
               {uninstalling ? (
@@ -241,6 +260,43 @@ export function SoftwareDetail({
               {uninstalling ? "Uninstalling…" : "Uninstall completely"}
             </Button>
           )}
+
+          {canSwitchToBrew ? (
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={switching}
+              onClick={() => onSwitchManager?.("brew")}
+            >
+              {switching ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+              )}
+              Switch to Brew
+            </Button>
+          ) : null}
+          {canSwitchToLocal ? (
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={switching}
+              onClick={() => onSwitchManager?.("local")}
+            >
+              {switching ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+              )}
+              Switch to Local
+            </Button>
+          ) : null}
+          {brewOwned ? (
+            <p className="text-xs text-muted-foreground">
+              Managed by Homebrew. Use Brew Manager or switch back to Softwares
+              to change install ownership.
+            </p>
+          ) : null}
 
           {(isInstalled || installedVersion || latest) && (
             <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">

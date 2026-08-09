@@ -27,6 +27,8 @@ func SetupRoutesAPI(app fiber.Router, appClients *config.AppClients) {
 	api.Get("/provider/:provider/callback", auth.HandleCallback)
 
 	api.Post("/signin", cc.SignInAPI)
+	api.Post("/local-signin", cc.LocalSignInAPI)
+	api.Get("/local-signin", cc.LocalSignInAPI)
 	api.Post("/register", cc.RegisterAPI)
 	api.Post("/forgot-password", cc.ForgotPasswordAPI)
 	api.Post("/check", cc.CheckApi)

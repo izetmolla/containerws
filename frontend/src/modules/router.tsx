@@ -14,6 +14,7 @@ import dockerRoutes from "./docker/routes"
 import filemanagerRoutes from "./filemanager/routes"
 import kubernetesRoutes from "./kubernetes/routes"
 import proxymanagerRoutes from "./proxymanager/routes"
+import brewRoutes from "./brew/routes"
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
         hydrateFallbackElement: <Fragment />,
       },
       { path: "/softwares", children: softwaresRoutes },
+      { path: "/brew", children: brewRoutes },
       { path: "/docker", children: dockerRoutes },
       { path: "/kubernetes", children: kubernetesRoutes },
       { path: "/proxymanager", children: proxymanagerRoutes },

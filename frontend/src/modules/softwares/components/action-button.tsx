@@ -1,9 +1,12 @@
+import { Download, ExternalLink, Loader2, RefreshCw } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
+
 import {
+  isBrewManaged,
   softwareInstallStatus,
   type SoftwareListItem,
 } from "../pages/list/api"
-import { Download, ExternalLink, Loader2, RefreshCw } from "lucide-react"
 
 export function ActionButton({
   software,
@@ -22,6 +25,24 @@ export function ActionButton({
 }) {
   const status = softwareInstallStatus(software, busy)
   const cls = fullWidth ? "w-full" : ""
+  const brewOwned = isBrewManaged(software)
+
+  if (brewOwned) {
+    return (
+      <Button
+        size={size}
+        variant="secondary"
+        className={cls}
+        onClick={(e) => {
+          e.stopPropagation()
+          onOpen?.(software)
+        }}
+      >
+        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+        Open (Brew)
+      </Button>
+    )
+  }
 
   if (status === "installing" || status === "updating") {
     return (

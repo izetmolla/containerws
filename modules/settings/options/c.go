@@ -87,6 +87,8 @@ func (cc *controller) ensureKnownOptions(db *gorm.DB) {
 		{models.OptionVNCSoftwarePresent, "false"},
 		{models.OptionCodeserverInstalled, "false"},
 		{models.OptionCodeserverSoftwarePresent, "false"},
+		{models.OptionBrewModuleEnabled, "false"},
+		{models.OptionLocalhostAutoLogin, "false"},
 	}
 	for _, item := range known {
 		if _, ok, err := models.GetOption(db, item.name); err == nil && !ok {

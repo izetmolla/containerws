@@ -179,7 +179,9 @@ export function SoftwareCatalog({
   const selectedItems = items.filter((i) => selectedIds.has(i.id))
   const selectedNotInstalled = selectedItems.filter((i) => !i.is_installed)
   const selectedInstalled = selectedItems.filter((i) => i.is_installed)
-  const selectedRemovable = selectedInstalled.filter((i) => i.can_uninstall)
+  const selectedRemovable = selectedInstalled.filter(
+    (i) => i.can_uninstall && i.package_manager !== "brew"
+  )
   const selectedWithUpdate = selectedItems.filter((i) => i.has_update)
 
   return (

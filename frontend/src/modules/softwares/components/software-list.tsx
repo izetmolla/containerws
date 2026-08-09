@@ -27,10 +27,12 @@ import {
 import { cn } from "@/lib/utils"
 
 import {
+  isBrewManaged,
   softwareInstallStatus,
   type SoftwareListItem,
   type SoftwareServiceAction,
 } from "../pages/list/api"
+import { ManagerBadge } from "./manager-badge"
 import { SoftwareGlyph } from "./software-glyph"
 import { SourceBadge } from "./source-badge"
 import { StatusPill } from "./status-pill"
@@ -62,6 +64,7 @@ export function SoftwareList({
   onClick,
   onUpdate,
   onServiceAction,
+  onSwitchManager,
   busyAction,
   queueBusyById,
 }: {
@@ -74,6 +77,7 @@ export function SoftwareList({
   onClick: (s: SoftwareListItem) => void
   onUpdate: (s: SoftwareListItem) => void
   onServiceAction?: (id: string, action: SoftwareServiceAction) => void
+  onSwitchManager?: (s: SoftwareListItem, target: "local" | "brew") => void
   busyAction?: string | null
   queueBusyById?: Map<string, "installing" | "updating">
 }) {
@@ -210,6 +214,17 @@ export function SoftwareList({
           },
         }),
         columnHelper.display({
+          id: "manager",
+          header: "Manager",
+          cell: ({ row }) => {
+            const item = row.original
+            if (!item.is_installed) {
+              return <span className="text-xs text-muted-foreground">—</span>
+            }
+            return <ManagerBadge packageManager={item.package_manager} />
+          },
+        }),
+        columnHelper.display({
           id: "latest",
           header: "Latest",
           cell: ({ row }) => {
@@ -268,12 +283,19 @@ export function SoftwareList({
           header: "",
           cell: ({ row }) => {
             const item = row.original
-            const status = softwareInstallStatus(item)
+            const brewOwned = isBrewManaged(item)
+            const status = softwareInstallStatus(
+              item,
+              queueBusyById?.get(item.id) ?? null
+            )
             const managed =
               Boolean(item.can_control) || Boolean(item.service_status?.managed)
             const overall = item.service_status?.overall
             const canControl =
-              managed && Boolean(item.is_installed) && onServiceAction
+              !brewOwned &&
+              managed &&
+              Boolean(item.is_installed) &&
+              onServiceAction
             const busy = busyAction?.startsWith(`${item.id}:`)
             const currentAction = busy ? busyAction!.split(":")[1] : null
 
@@ -296,16 +318,35 @@ export function SoftwareList({
                       <ExternalLink className="size-3.5" />
                       Open
                     </DropdownMenuItem>
-                    {status === "not_installed" ? (
+                    {status === "not_installed" && !brewOwned ? (
                       <DropdownMenuItem onClick={() => onClick(item)}>
                         <Download className="size-3.5" />
                         Install
                       </DropdownMenuItem>
                     ) : null}
-                    {status === "update_available" ? (
+                    {status === "update_available" && !brewOwned ? (
                       <DropdownMenuItem onClick={() => onUpdate(item)}>
                         <ArrowUpCircle className="size-3.5" />
                         Update
+                      </DropdownMenuItem>
+                    ) : null}
+                    {item.can_switch_to_brew && onSwitchManager ? (
+                      <DropdownMenuItem
+                        onClick={() => onSwitchManager(item, "brew")}
+                      >
+                        Switch to Brew
+                      </DropdownMenuItem>
+                    ) : null}
+                    {item.can_switch_to_local && onSwitchManager ? (
+                      <DropdownMenuItem
+                        onClick={() => onSwitchManager(item, "local")}
+                      >
+                        Switch to Local
+                      </DropdownMenuItem>
+                    ) : null}
+                    {brewOwned ? (
+                      <DropdownMenuItem disabled>
+                        Managed by Brew
                       </DropdownMenuItem>
                     ) : null}
                     {canControl ? (
@@ -334,7 +375,7 @@ export function SoftwareList({
                         </DropdownMenuItem>
                       </>
                     ) : null}
-                    {managed ? (
+                    {managed && !brewOwned ? (
                       <>
                         {!canControl ? <DropdownMenuSeparator /> : null}
                         <DropdownMenuItem
@@ -363,6 +404,7 @@ export function SoftwareList({
       onClick,
       onUpdate,
       onServiceAction,
+      onSwitchManager,
       busyAction,
       queueBusyById,
       navigate,

@@ -29,6 +29,12 @@ const (
 	OptionDockerModuleEnabled       = "DOCKER_MODULE_ENABLED"
 	OptionKubernetesModuleEnabled   = "KUBERNETES_MODULE_ENABLED"
 	OptionProxymanagerModuleEnabled = "PROXYMANAGER_MODULE_ENABLED"
+	// Brew Package module. Missing → disabled (opt-in; unlike other modules).
+	OptionBrewModuleEnabled = "BREW_MODULE_ENABLED"
+
+	// LocalhostAutoLogin signs in as the panel process Linux user when the
+	// TCP peer is loopback (127.0.0.1 / ::1). Missing → disabled (opt-in).
+	OptionLocalhostAutoLogin = "LOCALHOST_AUTO_LOGIN"
 
 	// Kubernetes — kubeconfig location / context / managed file registry.
 	// Cluster state is always read from the Kubernetes API.
@@ -123,6 +129,26 @@ func ModuleEnabled(db *gorm.DB, name string) bool {
 	v, ok, err := GetOptionBool(db, name)
 	if err != nil || !ok {
 		return true
+	}
+	return v
+}
+
+// BrewModuleEnabled reports whether the Brew Package module is on.
+// Missing option defaults to false (opt-in).
+func BrewModuleEnabled(db *gorm.DB) bool {
+	v, ok, err := GetOptionBool(db, OptionBrewModuleEnabled)
+	if err != nil || !ok {
+		return false
+	}
+	return v
+}
+
+// LocalhostAutoLoginEnabled reports whether loopback auto-login is on.
+// Missing option defaults to false (opt-in).
+func LocalhostAutoLoginEnabled(db *gorm.DB) bool {
+	v, ok, err := GetOptionBool(db, OptionLocalhostAutoLogin)
+	if err != nil || !ok {
+		return false
 	}
 	return v
 }

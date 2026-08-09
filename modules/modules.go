@@ -5,6 +5,7 @@ import (
 	"github.com/izetmolla/containerws/config"
 	"github.com/izetmolla/containerws/frontend"
 	"github.com/izetmolla/containerws/modules/authorization"
+	"github.com/izetmolla/containerws/modules/brew"
 	"github.com/izetmolla/containerws/modules/cloudshell"
 	"github.com/izetmolla/containerws/modules/codeserver"
 	"github.com/izetmolla/containerws/modules/dashboard"
@@ -59,6 +60,7 @@ func SetupRoutes(app *fiber.App, appClients *config.AppClients) {
 	))
 
 	softwares.SetupRoutesAPI(api, appClients)
+	brew.SetupRoutesAPI(api, appClients)
 	docker.SetupRoutesAPI(api, appClients)
 	filemanager.SetupRoutesAPI(api, appClients)
 	kubernetes.SetupRoutesAPI(api, appClients)

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 
@@ -26,7 +26,7 @@ import {
 } from "../../lib/auth-form-styles"
 import { cn } from "@/lib/utils"
 import { AuthButton } from "../../components/AuthInput"
-import { getBranding, signIn, signInSchema, type SignInSchema } from "./api"
+import { getBranding, localSignIn, signIn, signInSchema, type SignInResponse, type SignInSchema } from "./api"
 import {
   getFieldsErrorsFromData,
   getRequestErrorMessage,
@@ -45,6 +45,7 @@ const SignInPage = () => {
   const redirectUrl = searchParams.get("redirectUrl")
   const signInAction = useAuthorizationStore((state) => state.signIn)
   const setRedirectUrl = useAuthorizationStore((state) => state.setRedirectUrl)
+  const localAttempted = useRef(false)
 
   const brandingQuery = useQuery({
     queryKey: ["authorization", "branding"],
@@ -57,6 +58,8 @@ const SignInPage = () => {
     brandingQuery.data?.data?.os_name?.trim() ||
     brandingQuery.data?.data?.workspace_name?.trim() ||
     ""
+
+  const localhostEligible = Boolean(brandingQuery.data?.data?.localhost_eligible)
 
   useEffect(() => {
     if (redirectUrl) {
@@ -78,15 +81,22 @@ const SignInPage = () => {
     window.location.replace(redirectUrl || "/")
   }
 
+  const applySession = (data: SignInResponse) => {
+    if (!data?.user || !data?.tokens) return false
+    signInAction({
+      user: data.user,
+      tokens: data.tokens,
+      session_id: data.session_id,
+      trusted: true,
+    })
+    completeRedirect()
+    return true
+  }
+
   const signInMutation = useMutation({
     mutationFn: signIn,
     onSuccess: (data) => {
-      console.log("data", data)
-      signInAction({
-        user: data?.user,
-        tokens: data?.tokens,
-      })
-      completeRedirect()
+      applySession(data)
     },
     onError: (error) => {
       if (getFieldsErrorsFromData(error)?.length > 0) {
@@ -106,8 +116,42 @@ const SignInPage = () => {
     },
   })
 
+  const localSignInMutation = useMutation({
+    mutationFn: localSignIn,
+    onSuccess: (data) => {
+      if (!applySession(data)) {
+        toast.error(t("An unknown error occurred"))
+      }
+    },
+    onError: () => {
+      // Fall through to the password form.
+    },
+  })
+
+  useEffect(() => {
+    if (!localhostEligible) return
+    if (sessions.length > 0) return
+    if (localAttempted.current) return
+    localAttempted.current = true
+    localSignInMutation.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localhostEligible, sessions.length])
+
   const onSubmit = (data: SignInSchema) => {
     signInMutation.mutate(data)
+  }
+
+  if (
+    localhostEligible &&
+    !localSignInMutation.isError &&
+    (localSignInMutation.isPending || localSignInMutation.isSuccess)
+  ) {
+    return (
+      <AuthHeader
+        title={t("Welcome back")}
+        subtitle={t("Signing in with your Linux session…")}
+      />
+    )
   }
 
   if (sessions.length > 0 && showAccountPicker) {

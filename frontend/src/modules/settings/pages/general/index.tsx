@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Box, Globe, Hexagon, Loader2, Save, Settings2 } from "lucide-react"
+import { Box, CupSoda, Globe, Hexagon, Loader2, Save, Settings2, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import ContentLoader from "@/components/content-loader"
@@ -141,9 +141,12 @@ export default function GeneralSettingsPage() {
   const dockerEnabled = Boolean(settingsData?.docker_enabled)
   const k8sEnabled = Boolean(settingsData?.kubernetes_enabled)
   const proxyEnabled = Boolean(settingsData?.proxymanager_enabled)
+  const brewEnabled = Boolean(settingsData?.brew_enabled)
+  const localhostAutoLogin = Boolean(settingsData?.localhost_auto_login)
   const docker = settingsData?.docker
   const kubernetes = settingsData?.kubernetes
   const proxymanager = settingsData?.proxymanager
+  const brew = settingsData?.brew
 
   return (
     <ContentLoader
@@ -217,8 +220,9 @@ export default function GeneralSettingsPage() {
           <div>
             <h2 className="text-sm font-medium">Modules</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Enable Docker, Kubernetes, and Proxy Manager in the sidebar.
-              Turning a module off hides its menu without uninstalling anything.
+              Enable Docker, Kubernetes, Proxy Manager, and Brew Package in the
+              sidebar. Turning a module off hides its menu without uninstalling
+              anything.
             </p>
           </div>
           <Separator />
@@ -387,6 +391,88 @@ export default function GeneralSettingsPage() {
                   </Button>
                 </div>
               ) : null}
+            </div>
+
+            <div className="rounded-xl border bg-card p-4 shadow-xs">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <CupSoda className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-medium">Brew Package</h3>
+                      {brew?.installing || brew?.bootstrap?.running ? (
+                        <Badge variant="secondary">Installing…</Badge>
+                      ) : brew?.binary_present ? (
+                        <Badge variant="default">Installed</Badge>
+                      ) : (
+                        <Badge variant="outline">Not installed</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Browse and manage Homebrew formulae. When enabled, Brew
+                      Manager appears in the sidebar and Homebrew is installed
+                      automatically if missing.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={brewEnabled}
+                  disabled={moduleMutation.isPending}
+                  onCheckedChange={(checked) =>
+                    moduleMutation.mutate({ brew_enabled: checked })
+                  }
+                  aria-label="Enable Brew Package module"
+                />
+              </div>
+              {brewEnabled ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <Link to="/brew">
+                      <CupSoda className="size-3.5" />
+                      Open Brew Manager
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-sm font-medium">Security</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Access controls for opening the panel on this host.
+            </p>
+          </div>
+          <Separator />
+          <div className="rounded-xl border bg-card p-4 shadow-xs">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <ShieldCheck className="size-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <h3 className="text-sm font-medium">Localhost auto-login</h3>
+                  <p className="text-sm text-muted-foreground">
+                    When enabled, opening the panel from{" "}
+                    <code className="text-xs">127.0.0.1</code> or{" "}
+                    <code className="text-xs">::1</code> signs you in as the
+                    Linux user running this panel (no password prompt). Remote
+                    clients are never auto-logged in.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={localhostAutoLogin}
+                disabled={moduleMutation.isPending}
+                onCheckedChange={(checked) =>
+                  moduleMutation.mutate({ localhost_auto_login: checked })
+                }
+                aria-label="Enable localhost auto-login"
+              />
             </div>
           </div>
         </section>

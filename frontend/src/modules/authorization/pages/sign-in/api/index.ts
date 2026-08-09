@@ -21,6 +21,8 @@ export type BrandingInfo = {
   os_label?: string
   os_version?: string
   hostname?: string
+  localhost_auto_login?: boolean
+  localhost_eligible?: boolean
 }
 
 export type BrandingResponse = {
@@ -39,6 +41,13 @@ export async function signIn(data: SignInSchema) {
     url: `${BASE_URL}/signin`,
     method: "post",
     data,
+  })
+}
+
+export async function localSignIn() {
+  return ApiService.fetchData<SignInResponse>({
+    url: `${BASE_URL}/local-signin`,
+    method: "post",
   })
 }
 

@@ -84,7 +84,12 @@ func (cc *controller) EnqueueAPI(c fiber.Ctx) error {
 
 	now := time.Now()
 	added := make([]*queueItem, 0, len(ids))
+	skippedBrew := 0
 	for _, id := range ids {
+		if models.GetSoftwarePackageManager(db, id) == models.PackageManagerBrew {
+			skippedBrew++
+			continue
+		}
 		item := &queueItem{
 			ID:         uuid.New().String(),
 			SoftwareID: id,
@@ -94,6 +99,13 @@ func (cc *controller) EnqueueAPI(c fiber.Ctx) error {
 		}
 		enrichQueueItemFromSoftware(db, item)
 		added = append(added, item)
+	}
+	if len(added) == 0 {
+		msg := "no softwares queued"
+		if skippedBrew > 0 {
+			msg = "skipped brew-managed softwares; switch to Softwares first"
+		}
+		return r.Api(c, r.WithError(errors.New(msg)), r.WithStatus(fiber.StatusConflict), r.WithErrorCode("OWNED_BY_BREW"))
 	}
 
 	bulkQueue.mu.Lock()
@@ -107,15 +119,58 @@ func (cc *controller) EnqueueAPI(c fiber.Ctx) error {
 
 	kickQueueWorker()
 
+	msg := fmt.Sprintf("Queued %d %s job(s)", len(added), action)
+	if skippedBrew > 0 {
+		msg = fmt.Sprintf("%s (%d brew-managed skipped)", msg, skippedBrew)
+	}
+
 	return r.Api(c, r.WithStatus(fiber.StatusAccepted), r.WithData(fiber.Map{
 		"data": fiber.Map{
-			"queued": len(added),
-			"action": action,
-			"items":  added,
-			"queue":  snapshotActiveQueue(db),
+			"queued":       len(added),
+			"skipped_brew": skippedBrew,
+			"action":       action,
+			"items":        added,
+			"queue":        snapshotActiveQueue(db),
 		},
-		"message": fmt.Sprintf("Queued %d %s job(s)", len(added), action),
+		"message": msg,
 	}))
+}
+
+// EnqueueActions queues install/update/uninstall for the given software IDs.
+// Returns how many items were queued.
+func EnqueueActions(db *gorm.DB, action string, softwareIDs []string) int {
+	action = strings.ToLower(strings.TrimSpace(action))
+	switch action {
+	case QueueActionInstall, QueueActionUpdate, QueueActionUninstall:
+	default:
+		return 0
+	}
+	ids := uniqueNonEmpty(softwareIDs)
+	if db == nil || len(ids) == 0 {
+		return 0
+	}
+	now := time.Now()
+	added := make([]*queueItem, 0, len(ids))
+	for _, id := range ids {
+		item := &queueItem{
+			ID:         uuid.New().String(),
+			SoftwareID: id,
+			Action:     action,
+			Status:     "pending",
+			EnqueuedAt: now,
+		}
+		enrichQueueItemFromSoftware(db, item)
+		added = append(added, item)
+	}
+	bulkQueue.mu.Lock()
+	bulkQueue.db = db
+	bulkQueue.items = append(bulkQueue.items, added...)
+	if len(bulkQueue.items) > 200 {
+		bulkQueue.items = bulkQueue.items[len(bulkQueue.items)-200:]
+	}
+	bulkQueue.mu.Unlock()
+	kickQueueWorker()
+	return len(added)
 }
 
 // EnqueueMissingInstalls queues softwaresync-detected OS-missing installs.
@@ -145,6 +200,9 @@ func EnqueueMissingInstalls(db *gorm.DB, items []softwaresync.MissingInstall) in
 			continue
 		}
 		if models.IsSoftwareUninstalled(db, softwareID) {
+			continue
+		}
+		if models.GetSoftwarePackageManager(db, softwareID) == models.PackageManagerBrew {
 			continue
 		}
 		if _, busy := pendingOrRunning[softwareID]; busy {

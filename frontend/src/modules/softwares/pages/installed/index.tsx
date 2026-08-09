@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { getRequestErrorMessage, withError } from "@/lib/network"
 
 import { SoftwareList } from "../../components/software-list"
+import { switchPackageManager } from "@/modules/brew/pages/api"
 import {
   controlSoftwareService,
   enqueueSoftwareActions,
@@ -217,16 +218,44 @@ export default function SoftwaresInstalledPage() {
     },
   })
 
+  const switchMutation = useMutation({
+    mutationFn: ({
+      item,
+      target,
+    }: {
+      item: SoftwareListItem
+      target: "local" | "brew"
+    }) => switchPackageManager(item.id, target),
+    onSuccess: (res) => {
+      toast.success(res.message || "Switched package manager")
+      void queryClient.invalidateQueries({
+        queryKey: [INSTALLED_SOFTWARES_FETCH_KEY],
+      })
+      void queryClient.invalidateQueries({ queryKey: [SOFTWARES_FETCH_KEY] })
+    },
+    onError: (err) => {
+      toast.error(getRequestErrorMessage(err, "Switch failed"))
+    },
+  })
+
   const busyAction = serviceMutation.isPending
     ? `${serviceMutation.variables?.id}:${serviceMutation.variables?.action}`
     : null
 
   const updatableSelected = items.filter(
     (i) =>
-      selectedIds.has(i.id) && i.has_update && !i.os_missing && !i.uninstalled
+      selectedIds.has(i.id) &&
+      i.has_update &&
+      !i.os_missing &&
+      !i.uninstalled &&
+      i.package_manager !== "brew"
   )
   const updatableAll = items.filter(
-    (i) => i.has_update && !i.os_missing && !i.uninstalled
+    (i) =>
+      i.has_update &&
+      !i.os_missing &&
+      !i.uninstalled &&
+      i.package_manager !== "brew"
   )
 
   return (
@@ -368,6 +397,9 @@ export default function SoftwaresInstalledPage() {
           onUpdate={(s) => navigate(`/softwares/${s.id}`)}
           onServiceAction={(id, action) =>
             serviceMutation.mutate({ id, action })
+          }
+          onSwitchManager={(s, target) =>
+            switchMutation.mutate({ item: s, target })
           }
           busyAction={busyAction}
           queueBusyById={queueBusyById}

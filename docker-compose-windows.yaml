@@ -15,6 +15,11 @@
 #
 # If systemd still fails on your WSL build, set CONTAINERWS_INIT=direct
 # (cws+sshd still run; start dockerd manually or via Softwares scripts).
+#
+# Bind-mount root (CONTAINERWS_HOST_ROOT):
+#   BAD  (no inotify):  /c/Users/.../WORKSPACE/containerws   ← Windows NTFS via 9p
+#   GOOD (inotify OK):  /home/<user>/WORKSPACE/containerws ← WSL Linux disk
+# Set via scripts/migrate-to-wsl-fs.ps1 (writes .env) or export before compose up.
 services:
   containerws:
     container_name: containerws
@@ -50,9 +55,9 @@ services:
     cap_drop:
       - SYS_MODULE
     volumes:
-      - /c/Users/imolla/WORKSPACE/containerws/content:/workspace
-      - /c/Users/imolla/WORKSPACE/containerws/keys.ssh:/root/.ssh
-      - /c/Users/imolla/WORKSPACE/containerws/config:/config
+      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/content:/workspace
+      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/keys.ssh:/root/.ssh
+      - ${CONTAINERWS_HOST_ROOT:-/c/Users/imolla/WORKSPACE/containerws}/config:/config
       - containerws-docker-data:/var/lib/docker
       # Intentionally NO /sys/fs/cgroup host bind-mount.
     networks:

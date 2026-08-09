@@ -32,6 +32,11 @@ export type SoftwareSingleResponse = {
     from_remote?: boolean
     synced_from_remote?: boolean
     sync_error?: string
+    package_manager?: string
+    brew_available?: boolean
+    can_switch_to_brew?: boolean
+    can_switch_to_local?: boolean
+    brew_token?: string
   }
 }
 
