@@ -236,8 +236,9 @@ ensure_builder() {
   fi
 
   log "creating buildx builder: ${BUILDER}"
+  # network=host: buildkit can resolve Docker Hub (bridge DNS to 8.8.4.4 often times out)
   if [[ "${DRY_RUN}" == true ]]; then
-    run docker buildx create --name="${BUILDER}" --driver=docker-container --bootstrap --use
+    run docker buildx create --name="${BUILDER}" --driver=docker-container --driver-opt=network=host --bootstrap --use
     return 0
   fi
 
@@ -246,6 +247,7 @@ ensure_builder() {
     docker buildx create \
       --name="${BUILDER}" \
       --driver=docker-container \
+      --driver-opt=network=host \
       --bootstrap \
       --use 2>&1
   )"; then
