@@ -2,9 +2,19 @@
 
 Product docs site built with [Docusaurus](https://docusaurus.io/docs).
 
-**Published site:** [https://izetmolla.github.io/containerws/](https://izetmolla.github.io/containerws/)
+**Published site:** [https://containerws.izetmolla.com](https://containerws.izetmolla.com)
 
-GitHub Pages hosts project sites under `https://<user>.github.io/<repo>/` (no free `containerws.*` subdomain unless you add a custom domain or a GitHub org named `containerws`).
+Hosted on GitHub Pages for `izetmolla/containerws` with custom domain `containerws.izetmolla.com`.
+
+## DNS (one-time)
+
+At your DNS provider for `izetmolla.com`, add:
+
+| Type  | Name           | Target / value        |
+|-------|----------------|-----------------------|
+| CNAME | `containerws`  | `izetmolla.github.io` |
+
+Then in the repo **Settings → Pages → Custom domain**, set `containerws.izetmolla.com` and enable **Enforce HTTPS** after DNS verifies.
 
 ## Develop
 
@@ -25,4 +35,4 @@ pnpm build
 
 ## Publish
 
-Pushing changes under `docs/` to `main` runs [`.github/workflows/docs.yml`](../.github/workflows/docs.yml) and deploys to GitHub Pages. Manual run: **Actions → Deploy docs → Run workflow**.
+Pushing `docs/` changes to `main` runs [`.github/workflows/docs.yml`](../.github/workflows/docs.yml). Manual: **Actions → Deploy docs → Run workflow**.

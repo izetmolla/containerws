@@ -11,9 +11,9 @@ const config: Config = {
     v4: true,
   },
 
-  // GitHub Pages project site: https://izetmolla.github.io/containerws/
-  url: 'https://izetmolla.github.io',
-  baseUrl: '/containerws/',
+  // Custom domain on GitHub Pages (DNS CNAME → izetmolla.github.io)
+  url: 'https://containerws.izetmolla.com',
+  baseUrl: '/',
 
   organizationName: 'izetmolla',
   projectName: 'containerws',
