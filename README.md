@@ -1,14 +1,18 @@
-# Container Workspace (containerws)
+# ContainerWS
 
-Container Workspace is a full Linux workspace: a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor). Run it as a **native binary** on the host, or as a Docker image with systemd/SSH when available.
+Container Workspace (**ContainerWS**) is a full Linux workspace: a web UI + API (`cws` on port **9000**), Softwares catalog, Cloud Shell, MCP tools, nested Docker, and optional desktop apps (XFCE / noVNC, Chrome, VS Code, Cursor). Run it as a **native binary** on the host, or as a Docker image with systemd/SSH when available.
 
-**Author:** [Izet Molla](mailto:izetmolla@icloud.com)
+ContainerWS dashboard — live VM / container analytics
+
+**Docs:** [containerws.izetmolla.com](https://containerws.izetmolla.com) · **Docker Hub:** [izetmolla/containerws](https://hub.docker.com/r/izetmolla/containerws) · **Author:** [Izet Molla](mailto:izetmolla@icloud.com)
 
 Images are published as multi-arch (**linux/amd64** + **linux/arm64**) under:
 
 `izetmolla/containerws:<distro>-<version>`
 
 ---
+
+
 
 ## Quick install — Homebrew (macOS / Linuxbrew)
 
@@ -29,8 +33,9 @@ Then run `containerws` / `cws` (same binary). Tap repo: [izetmolla/homebrew-tap]
 
 ---
 
-## Quick install — native binary (recommended on bare metal / VM)
 
+
+## Quick install — native binary (recommended on bare metal / VM)
 
 Installs the latest GitHub Release binary, links `cws` / `containerws`, prepares `/config/containerws`, and starts a daemon that runs `cws --start` (systemd, launchd, OpenRC, FreeBSD rc, or **direct** mode when no init is available):
 
@@ -53,47 +58,57 @@ sudo bash /tmp/cws-install.sh --no-start         # install only, do not start
 sudo bash /tmp/cws-install.sh --uninstall        # remove binary + daemon (keeps /config)
 ```
 
-After install: open **http://127.0.0.1:9000**. Check status with `systemctl status containerws` (systemd) or `/usr/local/lib/containerws/bin/cws-daemon.sh status` (direct mode).
+After install: open **[http://127.0.0.1:9000](http://127.0.0.1:9000)**. Check status with `systemctl status containerws` (systemd) or `/usr/local/lib/containerws/bin/cws-daemon.sh status` (direct mode).
 
 Full details: [install/README.md](install/README.md).
 
 ---
 
+
+
 ## Docker images and tags
+
+
 
 ### Runtime images (what you run)
 
-| Image | Tag | Base OS | What it runs |
-|-------|-----|---------|--------------|
+
+| Image                   | Tag            | Base OS                 | What it runs                                                                                                                        |
+| ----------------------- | -------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `izetmolla/containerws` | `ubuntu-26.04` | Ubuntu 26.04 (Resolute) | **Default / recommended.** systemd + OpenSSH + `cws` (UI/API on `:9000`). Softwares catalog, nested Docker volume, desktop-capable. |
-| `izetmolla/containerws` | `ubuntu-26.10` | Ubuntu 26.10 | Same stack on newer Ubuntu. |
-| `izetmolla/containerws` | `ubuntu-25.10` | Ubuntu 25.10 (Questing) | Same stack on Ubuntu 25.10. |
-| `izetmolla/containerws` | `ubuntu-25.04` | Ubuntu 25.04 (Plucky) | Same stack on Ubuntu 25.04. |
-| `izetmolla/containerws` | `debian-13` | Debian 13 (Trixie) | Same app stack on Debian 13. |
-| `izetmolla/containerws` | `debian-12` | Debian 12 (Bookworm) | Same app stack on Debian 12 (stable-oriented). |
-| `izetmolla/containerws` | `kali-rolling` | Kali Linux Rolling | Same app stack on `kalilinux/kali-rolling` (security toolkit base). |
-| `izetmolla/containerws` | `fedora-44` | Fedora 44 | Same app stack on Fedora 44 (`dnf` / RPM world). |
-| `izetmolla/containerws` | `fedora-43` | Fedora 43 | Same app stack on Fedora 43. |
+| `izetmolla/containerws` | `ubuntu-26.10` | Ubuntu 26.10            | Same stack on newer Ubuntu.                                                                                                         |
+| `izetmolla/containerws` | `ubuntu-25.10` | Ubuntu 25.10 (Questing) | Same stack on Ubuntu 25.10.                                                                                                         |
+| `izetmolla/containerws` | `ubuntu-25.04` | Ubuntu 25.04 (Plucky)   | Same stack on Ubuntu 25.04.                                                                                                         |
+| `izetmolla/containerws` | `debian-13`    | Debian 13 (Trixie)      | Same app stack on Debian 13.                                                                                                        |
+| `izetmolla/containerws` | `debian-12`    | Debian 12 (Bookworm)    | Same app stack on Debian 12 (stable-oriented).                                                                                      |
+| `izetmolla/containerws` | `kali-rolling` | Kali Linux Rolling      | Same app stack on `kalilinux/kali-rolling` (security toolkit base).                                                                 |
+| `izetmolla/containerws` | `fedora-44`    | Fedora 44               | Same app stack on Fedora 44 (`dnf` / RPM world).                                                                                    |
+| `izetmolla/containerws` | `fedora-43`    | Fedora 43               | Same app stack on Fedora 43.                                                                                                        |
+
 
 Every runtime image:
 
 - Starts via `/entrypoint.sh` (`CONTAINERWS_INIT=auto|systemd|direct`)
 - Exposes **22** (SSH) and **9000** (Container Workspace web UI / API)
-- Persists app data under **`/config`** (SQLite, machine id, SSL, VNC pass, etc.)
+- Persists app data under `/config` (SQLite, machine id, SSL, VNC pass, etc.)
 - Ships the Softwares catalog install scripts (Go, Node, Docker Engine, XFCE+noVNC, Chrome, VS Code, …)
 
 Pick a tag that matches the distro you want inside the workspace. Behavior of `cws` is the same across tags; package managers and base packages differ.
 
 ### Build toolkit (not a workspace)
 
-| Image | Tag | Purpose |
-|-------|-----|---------|
-| `izetmolla/binoptimization` | `latest` | Build-only toolkit (strip + UPX) imported by OS Dockerfiles. **Do not run as a workspace.** |
-| `izetmolla/containerws` | `binoptimization` | Alias of the toolkit above (same purpose). |
+
+| Image                       | Tag               | Purpose                                                                                     |
+| --------------------------- | ----------------- | ------------------------------------------------------------------------------------------- |
+| `izetmolla/binoptimization` | `latest`          | Build-only toolkit (strip + UPX) imported by OS Dockerfiles. **Do not run as a workspace.** |
+| `izetmolla/containerws`     | `binoptimization` | Alias of the toolkit above (same purpose).                                                  |
+
 
 Dockerfile sources live under `docker/<os>/<version>/Dockerfile`.
 
 ---
+
+
 
 ## Requirements (Linux / WSL)
 
@@ -101,6 +116,8 @@ Dockerfile sources live under `docker/<os>/<version>/Dockerfile`.
 - Docker Compose v2 (`docker compose`)
 - Recommended: NVIDIA Container Toolkit if you want `gpus: all`
 - Treat these containers as a **trusted personal workspace** (`privileged` + unconfined seccomp/apparmor are required for nested Docker and desktop apps)
+
+
 
 ### WSL / Docker Desktop notes (important)
 
@@ -122,7 +139,11 @@ environment:
 
 ---
 
+
+
 ## Quick start — Docker Compose (Linux / WSL)
+
+
 
 ### 1. Clone and prepare config volume
 
@@ -131,6 +152,8 @@ git clone https://github.com/izetmolla/containerws.git
 cd containerws
 mkdir -p tmp/config
 ```
+
+
 
 ### 2. Use or adapt compose
 
@@ -196,25 +219,33 @@ Save as `docker-compose.local.yaml` and run:
 docker compose -f docker-compose.local.yaml up -d
 ```
 
+
+
 ### 3. Open the workspace
 
-| Service | URL / command |
-|---------|----------------|
-| Web UI / API | http://localhost:9000 |
-| SSH | `ssh -p 2222 root@localhost` (if you published `2222:22`) |
-| Shell into container | `docker exec -it containerws bash` |
+
+| Service              | URL / command                                             |
+| -------------------- | --------------------------------------------------------- |
+| Web UI / API         | [http://localhost:9000](http://localhost:9000)            |
+| SSH                  | `ssh -p 2222 root@localhost` (if you published `2222:22`) |
+| Shell into container | `docker exec -it containerws bash`                        |
+
 
 Data survives recreate as long as `./tmp/config` (and the nested Docker volume) are kept.
 
 ### Compose files in this repo
 
-| File | Audience | Notes |
-|------|----------|--------|
-| `docker-compose.yaml` | Linux / WSL **dev** | Builds `docker/ubuntu/26.04/Dockerfile`, mounts `./tmp/config`, external `VLAN26` network |
+
+| File                          | Audience                       | Notes                                                                                         |
+| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `docker-compose.yaml`         | Linux / WSL **dev**            | Builds `docker/ubuntu/26.04/Dockerfile`, mounts `./tmp/config`, external `VLAN26` network     |
 | `docker-compose-windows.yaml` | Windows Docker Desktop example | Pulls `izetmolla/containerws:ubuntu-26.04`, Windows-style host paths — adapt paths before use |
-| `docker-compose-example.yaml` | Legacy example | Uses older `cgroup: host` + cgroup bind — **avoid on WSL** |
+| `docker-compose-example.yaml` | Legacy example                 | Uses older `cgroup: host` + cgroup bind — **avoid on WSL**                                    |
+
 
 ---
+
+
 
 ## Quick start — Docker CLI (Linux / WSL)
 
@@ -275,42 +306,56 @@ docker rm -f containerws                              # remove container (keep v
 
 ---
 
+
+
 ## Environment variables
 
-| Variable | Default / example | Meaning |
-|----------|-------------------|---------|
-| `ENV` | `production` | App environment |
-| `CONTAINERWS_INIT` | `auto` | `auto` / `systemd` / `direct` — how PID 1 starts `cws` + sshd |
-| `ROOT_PWD` | *(set your own)* | Root password configured at first boot |
-| `ROOT_SSH_PUBLIC_KEY` | empty | Optional authorized key for root SSH |
-| `container` | `docker` | Hint for container-aware scripts |
-| `NVIDIA_VISIBLE_DEVICES` | `all` | GPU visibility (with NVIDIA toolkit) |
-| `NVIDIA_DRIVER_CAPABILITIES` | `all` | NVIDIA driver caps |
-| `MCP_PORT` | unset | If set, starts standalone MCP HTTP listener |
-| `MCP_TOKEN` | unset | Optional bootstrap MCP auth token |
-| `DATABASE_URL` | `/config/containerws/database/database.sqlite` (prod) | SQLite path |
+
+| Variable                     | Default / example                                     | Meaning                                                       |
+| ---------------------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| `ENV`                        | `production`                                          | App environment                                               |
+| `CONTAINERWS_INIT`           | `auto`                                                | `auto` / `systemd` / `direct` — how PID 1 starts `cws` + sshd |
+| `ROOT_PWD`                   | *(set your own)*                                      | Root password configured at first boot                        |
+| `ROOT_SSH_PUBLIC_KEY`        | empty                                                 | Optional authorized key for root SSH                          |
+| `container`                  | `docker`                                              | Hint for container-aware scripts                              |
+| `NVIDIA_VISIBLE_DEVICES`     | `all`                                                 | GPU visibility (with NVIDIA toolkit)                          |
+| `NVIDIA_DRIVER_CAPABILITIES` | `all`                                                 | NVIDIA driver caps                                            |
+| `MCP_PORT`                   | unset                                                 | If set, starts standalone MCP HTTP listener                   |
+| `MCP_TOKEN`                  | unset                                                 | Optional bootstrap MCP auth token                             |
+| `DATABASE_URL`               | `/config/containerws/database/database.sqlite` (prod) | SQLite path                                                   |
+
 
 ---
 
+
+
 ## Ports
 
-| Port | Service |
-|------|---------|
+
+| Port     | Service                                                           |
+| -------- | ----------------------------------------------------------------- |
 | **9000** | Container Workspace web UI + REST API (+ `/api/mcp` when enabled) |
-| **22** | OpenSSH |
+| **22**   | OpenSSH                                                           |
+
 
 Publish host ports with `-p 9000:9000 -p 2222:22` (or your compose `ports:` / network IP).
 
 ---
 
+
+
 ## Volumes
 
-| Mount | Purpose |
-|-------|---------|
-| `/config` | Persistent app state (DB, machine id, SSL, VNC, etc.). **Keep this** across recreate. |
-| `/var/lib/docker` | Nested Docker Engine data (named volume recommended) |
+
+| Mount             | Purpose                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `/config`         | Persistent app state (DB, machine id, SSL, VNC, etc.). **Keep this** across recreate. |
+| `/var/lib/docker` | Nested Docker Engine data (named volume recommended)                                  |
+
 
 ---
+
+
 
 ## Binary releases (GitHub)
 
@@ -328,7 +373,7 @@ There is **no** GitHub Actions Release workflow; normal **CI** still runs on bra
 ```
 
 This bumps/tags, publishes the GitHub Release, then pushes `dist/homebrew/Casks/containerws.rb` to
-[`izetmolla/homebrew-tap`](https://github.com/izetmolla/homebrew-tap) over **SSH**
+`[izetmolla/homebrew-tap](https://github.com/izetmolla/homebrew-tap)` over **SSH**
 (`git@github.com`) using your GitHub SSH key (`~/.ssh/id_ed25519` or `HOMEBREW_TAP_SSH_KEY`).
 No `HOMEBREW_TAP_TOKEN` is required for local releases.
 
@@ -337,6 +382,8 @@ Standalone tap publish (after a goreleaser run left `dist/homebrew/...`):
 ```bash
 ./scripts/publish-homebrew-tap.sh v0.1.3
 ```
+
+
 
 ### Tag only (no publish)
 
@@ -359,14 +406,13 @@ Updated automatically by `release-local.sh` / `publish-homebrew-tap.sh` over SSH
 One-time setup:
 
 1. Create the public tap (or run `./scripts/setup-homebrew-tap.sh`):
-
-   ```bash
+  ```bash
    gh repo create izetmolla/homebrew-tap --public --description "Homebrew tap for Container Workspace" --clone=false
-   ```
-
+  ```
 2. Ensure your SSH public key can push that repo.
-
 3. Install: `brew install --cask izetmolla/tap/containerws` then `sudo containerws setup`.
+
+
 
 ## Build images locally
 
@@ -397,6 +443,8 @@ List discoverable tags:
 
 ---
 
+
+
 ## Softwares inside the workspace
 
 After the container is up, install catalog tools from the UI (**Softwares**), CLI (`cws software …`), or MCP (`softwares_lookup` → `softwares_install`).
@@ -407,11 +455,23 @@ On app start, `softwaresync` checks `software_installed` vs the host and reinsta
 
 ---
 
+
+
 ## Security note
 
 These images are intended as a **developer workspace**, not a locked-down multi-tenant sandbox. `privileged`, `seccomp:unconfined`, and `apparmor:unconfined` enable nested Docker and desktop/Electron apps. Do not expose them to untrusted networks without additional controls. Always set your own `ROOT_PWD` / SSH keys.
 
 ---
+
+
+
+## License
+
+This project is open source under the [MIT License](./LICENSE).
+
+---
+
+
 
 ## Author
 
