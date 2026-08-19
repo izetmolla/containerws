@@ -21,7 +21,6 @@ import {
   authFieldClassName,
   authFieldItemClass,
   authFieldLabelClass,
-  authFooterLinkClass,
   authLabelClassName,
 } from "../../lib/auth-form-styles"
 import { cn } from "@/lib/utils"
