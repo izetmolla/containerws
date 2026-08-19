@@ -257,15 +257,6 @@ const SignInPage = () => {
           )}
         </form>
       </Form>
-      <p className={authFooterLinkClass}>
-        {t("Don't have an account?")}{" "}
-        <Link
-          to="/register"
-          className="font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          {t("Create account")}
-        </Link>
-      </p>
     </>
   )
 }
